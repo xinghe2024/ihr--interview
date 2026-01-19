@@ -1,0 +1,717 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>V1.1 产品需求</title><style>
+/* cspell:disable-file */
+/* webkit printing magic: print all background colors */
+html {
+	-webkit-print-color-adjust: exact;
+}
+* {
+	box-sizing: border-box;
+	-webkit-print-color-adjust: exact;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}
+@media only screen {
+	body {
+		margin: 2em auto;
+		max-width: 900px;
+		color: rgb(55, 53, 47);
+	}
+}
+
+body {
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+a,
+a.visited {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.pdf-relative-link-path {
+	font-size: 80%;
+	color: #444;
+}
+
+h1,
+h2,
+h3 {
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+	font-weight: 600;
+	margin-bottom: 0;
+}
+
+/* Override strong tags inside headings to maintain consistent weight */
+h1 strong,
+h2 strong,
+h3 strong {
+	font-weight: 600;
+}
+
+.page-title {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-top: 0;
+	margin-bottom: 0.75em;
+}
+
+h1 {
+	font-size: 1.875rem;
+	margin-top: 1.875rem;
+}
+
+h2 {
+	font-size: 1.5rem;
+	margin-top: 1.5rem;
+}
+
+h3 {
+	font-size: 1.25rem;
+	margin-top: 1.25rem;
+}
+
+.source {
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	padding: 1.5em;
+	word-break: break-all;
+}
+
+.callout {
+	border-radius: 10px;
+	padding: 1rem;
+}
+
+figure {
+	margin: 1.25em 0;
+	page-break-inside: avoid;
+}
+
+figcaption {
+	opacity: 0.5;
+	font-size: 85%;
+	margin-top: 0.5em;
+}
+
+mark {
+	background-color: transparent;
+}
+
+.indented {
+	padding-left: 1.5em;
+}
+
+hr {
+	background: transparent;
+	display: block;
+	width: 100%;
+	height: 1px;
+	visibility: visible;
+	border: none;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+img {
+	max-width: 100%;
+}
+
+@media only print {
+	img {
+		max-height: 100vh;
+		object-fit: contain;
+	}
+}
+
+@page {
+	margin: 1in;
+}
+
+.collection-content {
+	font-size: 0.875rem;
+}
+
+.collection-content td {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.column-list {
+	display: flex;
+	justify-content: space-between;
+}
+
+.column {
+	padding: 0 1em;
+}
+
+.column:first-child {
+	padding-left: 0;
+}
+
+.column:last-child {
+	padding-right: 0;
+}
+
+.table_of_contents-item {
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.3;
+	padding: 0.125rem;
+}
+
+.table_of_contents-indent-1 {
+	margin-left: 1.5rem;
+}
+
+.table_of_contents-indent-2 {
+	margin-left: 3rem;
+}
+
+.table_of_contents-indent-3 {
+	margin-left: 4.5rem;
+}
+
+.table_of_contents-link {
+	text-decoration: none;
+	opacity: 0.7;
+	border-bottom: 1px solid rgba(55, 53, 47, 0.18);
+}
+
+table,
+th,
+td {
+	border: 1px solid rgba(55, 53, 47, 0.09);
+	border-collapse: collapse;
+}
+
+table {
+	border-left: none;
+	border-right: none;
+}
+
+th,
+td {
+	font-weight: normal;
+	padding: 0.25em 0.5em;
+	line-height: 1.5;
+	min-height: 1.5em;
+	text-align: left;
+}
+
+th {
+	color: rgba(55, 53, 47, 0.6);
+}
+
+ol,
+ul {
+	margin: 0;
+	margin-block-start: 0.6em;
+	margin-block-end: 0.6em;
+}
+
+li > ol:first-child,
+li > ul:first-child {
+	margin-block-start: 0.6em;
+}
+
+ul > li {
+	list-style: disc;
+}
+
+ul.to-do-list {
+	padding-inline-start: 0;
+}
+
+ul.to-do-list > li {
+	list-style: none;
+}
+
+.to-do-children-checked {
+	text-decoration: line-through;
+	opacity: 0.375;
+}
+
+ul.toggle > li {
+	list-style: none;
+}
+
+ul {
+	padding-inline-start: 1.7em;
+}
+
+ul > li {
+	padding-left: 0.1em;
+}
+
+ol {
+	padding-inline-start: 1.6em;
+}
+
+ol > li {
+	padding-left: 0.2em;
+}
+
+.mono ol {
+	padding-inline-start: 2em;
+}
+
+.mono ol > li {
+	text-indent: -0.4em;
+}
+
+.toggle {
+	padding-inline-start: 0em;
+	list-style-type: none;
+}
+
+/* Indent toggle children */
+.toggle > li > details {
+	padding-left: 1.7em;
+}
+
+.toggle > li > details > summary {
+	margin-left: -1.1em;
+}
+
+.selected-value {
+	display: inline-block;
+	padding: 0 0.5em;
+	background: rgba(206, 205, 202, 0.5);
+	border-radius: 3px;
+	margin-right: 0.5em;
+	margin-top: 0.3em;
+	margin-bottom: 0.3em;
+	white-space: nowrap;
+}
+
+.collection-title {
+	display: inline-block;
+	margin-right: 1em;
+}
+
+.page-description {
+	margin-bottom: 2em;
+}
+
+.simple-table {
+	margin-top: 1em;
+	font-size: 0.875rem;
+	empty-cells: show;
+}
+.simple-table td {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table th {
+	height: 29px;
+	min-width: 120px;
+}
+
+.simple-table-header-color {
+	background: rgb(247, 246, 243);
+	color: black;
+}
+.simple-table-header {
+	font-weight: 500;
+}
+
+time {
+	opacity: 0.5;
+}
+
+.icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 1.2em;
+	max-height: 1.2em;
+	text-decoration: none;
+	vertical-align: text-bottom;
+	margin-right: 0.5em;
+}
+
+img.icon {
+	border-radius: 3px;
+}
+
+.callout img.notion-static-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.callout p {
+	margin: 0;
+}
+
+.callout h1,
+.callout h2,
+.callout h3 {
+	margin: 0 0 0.6rem;
+}
+
+.user-icon {
+	width: 1.5em;
+	height: 1.5em;
+	border-radius: 100%;
+	margin-right: 0.5rem;
+}
+
+.user-icon-inner {
+	font-size: 0.8em;
+}
+
+.text-icon {
+	border: 1px solid #000;
+	text-align: center;
+}
+
+.page-cover-image {
+	display: block;
+	object-fit: cover;
+	width: 100%;
+	max-height: 30vh;
+}
+
+.page-header-icon {
+	font-size: 3rem;
+	margin-bottom: 1rem;
+}
+
+.page-header-icon-with-cover {
+	margin-top: -0.72em;
+	margin-left: 0.07em;
+}
+
+.page-header-icon img {
+	border-radius: 3px;
+}
+
+.link-to-page {
+	margin: 1em 0;
+	padding: 0;
+	border: none;
+	font-weight: 500;
+}
+
+p > .user {
+	opacity: 0.5;
+}
+
+td > .user,
+td > time {
+	white-space: nowrap;
+}
+
+input[type="checkbox"] {
+	transform: scale(1.5);
+	margin-right: 0.6em;
+	vertical-align: middle;
+}
+
+p {
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.image {
+	border: none;
+	margin: 1.5em 0;
+	padding: 0;
+	border-radius: 0;
+	text-align: center;
+}
+
+.code,
+code {
+	background: rgba(135, 131, 120, 0.15);
+	border-radius: 3px;
+	padding: 0.2em 0.4em;
+	border-radius: 3px;
+	font-size: 85%;
+	tab-size: 2;
+}
+
+code {
+	color: #eb5757;
+}
+
+.code {
+	padding: 1.5em 1em;
+}
+
+.code-wrap {
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.code > code {
+	background: none;
+	padding: 0;
+	font-size: 100%;
+	color: inherit;
+}
+
+blockquote {
+	font-size: 1em;
+	margin: 1em 0;
+	padding-left: 1em;
+	border-left: 3px solid rgb(55, 53, 47);
+}
+
+blockquote.quote-large {
+	font-size: 1.25em;
+}
+
+.bookmark {
+	text-decoration: none;
+	max-height: 8em;
+	padding: 0;
+	display: flex;
+	width: 100%;
+	align-items: stretch;
+}
+
+.bookmark-title {
+	font-size: 0.85em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	height: 1.75em;
+	white-space: nowrap;
+}
+
+.bookmark-text {
+	display: flex;
+	flex-direction: column;
+}
+
+.bookmark-info {
+	flex: 4 1 180px;
+	padding: 12px 14px 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.bookmark-image {
+	width: 33%;
+	flex: 1 1 180px;
+	display: block;
+	position: relative;
+	object-fit: cover;
+	border-radius: 1px;
+}
+
+.bookmark-description {
+	color: rgba(55, 53, 47, 0.6);
+	font-size: 0.75em;
+	overflow: hidden;
+	max-height: 4.5em;
+	word-break: break-word;
+}
+
+.bookmark-href {
+	font-size: 0.75em;
+	margin-top: 0.25em;
+}
+
+.sans { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol"; }
+.code { font-family: "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace; }
+.serif { font-family: Lyon-Text, Georgia, ui-serif, serif; }
+.mono { font-family: iawriter-mono, Nitti, Menlo, Courier, monospace; }
+.pdf .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK JP'; }
+.pdf:lang(zh-CN) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK SC'; }
+.pdf:lang(zh-TW) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK TC'; }
+.pdf:lang(ko-KR) .sans { font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica, "Apple Color Emoji", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol", 'Twemoji', 'Noto Color Emoji', 'Noto Sans CJK KR'; }
+.pdf .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .code { font-family: Source Code Pro, "SFMono-Regular", Menlo, Consolas, "PT Mono", "Liberation Mono", Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.pdf .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK JP'; }
+.pdf:lang(zh-CN) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK SC'; }
+.pdf:lang(zh-TW) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK TC'; }
+.pdf:lang(ko-KR) .serif { font-family: PT Serif, Lyon-Text, Georgia, ui-serif, serif, 'Twemoji', 'Noto Color Emoji', 'Noto Serif CJK KR'; }
+.pdf .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK JP'; }
+.pdf:lang(zh-CN) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK SC'; }
+.pdf:lang(zh-TW) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK TC'; }
+.pdf:lang(ko-KR) .mono { font-family: PT Mono, iawriter-mono, Nitti, Menlo, Courier, monospace, 'Twemoji', 'Noto Color Emoji', 'Noto Sans Mono CJK KR'; }
+.highlight-default {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.highlight-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.highlight-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.highlight-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.highlight-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.highlight-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.highlight-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.highlight-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.highlight-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.highlight-default_background {
+	color: rgba(44, 44, 43, 1);
+}
+.highlight-gray_background {
+	background: rgba(42, 28, 0, 0.07);
+}
+.highlight-brown_background {
+	background: rgba(139, 46, 0, 0.086);
+}
+.highlight-orange_background {
+	background: rgba(224, 101, 1, 0.129);
+}
+.highlight-yellow_background {
+	background: rgba(211, 168, 0, 0.137);
+}
+.highlight-teal_background {
+	background: rgba(0, 100, 45, 0.09);
+}
+.highlight-blue_background {
+	background: rgba(0, 124, 215, 0.094);
+}
+.highlight-purple_background {
+	background: rgba(102, 0, 178, 0.078);
+}
+.highlight-pink_background {
+	background: rgba(197, 0, 93, 0.086);
+}
+.highlight-red_background {
+	background: rgba(223, 22, 0, 0.094);
+}
+.block-color-default {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray {
+	color: rgba(125, 122, 117, 1);
+	fill: rgba(125, 122, 117, 1);
+}
+.block-color-brown {
+	color: rgba(159, 118, 90, 1);
+	fill: rgba(159, 118, 90, 1);
+}
+.block-color-orange {
+	color: rgba(210, 123, 45, 1);
+	fill: rgba(210, 123, 45, 1);
+}
+.block-color-yellow {
+	color: rgba(203, 148, 52, 1);
+	fill: rgba(203, 148, 52, 1);
+}
+.block-color-teal {
+	color: rgba(80, 148, 110, 1);
+	fill: rgba(80, 148, 110, 1);
+}
+.block-color-blue {
+	color: rgba(56, 125, 201, 1);
+	fill: rgba(56, 125, 201, 1);
+}
+.block-color-purple {
+	color: rgba(154, 107, 180, 1);
+	fill: rgba(154, 107, 180, 1);
+}
+.block-color-pink {
+	color: rgba(193, 76, 138, 1);
+	fill: rgba(193, 76, 138, 1);
+}
+.block-color-red {
+	color: rgba(207, 81, 72, 1);
+	fill: rgba(207, 81, 72, 1);
+}
+.block-color-default_background {
+	color: inherit;
+	fill: inherit;
+}
+.block-color-gray_background {
+	background: rgba(240, 239, 237, 1);
+}
+.block-color-brown_background {
+	background: rgba(245, 237, 233, 1);
+}
+.block-color-orange_background {
+	background: rgba(251, 235, 222, 1);
+}
+.block-color-yellow_background {
+	background: rgba(249, 243, 220, 1);
+}
+.block-color-teal_background {
+	background: rgba(232, 241, 236, 1);
+}
+.block-color-blue_background {
+	background: rgba(229, 242, 252, 1);
+}
+.block-color-purple_background {
+	background: rgba(243, 235, 249, 1);
+}
+.block-color-pink_background {
+	background: rgba(250, 233, 241, 1);
+}
+.block-color-red_background {
+	background: rgba(252, 233, 231, 1);
+}
+.select-value-color-default { background-color: rgba(42, 28, 0, 0.07); }
+.select-value-color-gray { background-color: rgba(28, 19, 1, 0.11); }
+.select-value-color-brown { background-color: rgba(127, 51, 0, 0.156); }
+.select-value-color-orange { background-color: rgba(196, 88, 0, 0.203); }
+.select-value-color-yellow { background-color: rgba(209, 156, 0, 0.282); }
+.select-value-color-green { background-color: rgba(0, 96, 38, 0.156); }
+.select-value-color-blue { background-color: rgba(0, 118, 217, 0.203); }
+.select-value-color-purple { background-color: rgba(92, 0, 163, 0.141); }
+.select-value-color-pink { background-color: rgba(183, 0, 78, 0.152); }
+.select-value-color-red { background-color: rgba(206, 24, 0, 0.164); }
+
+.checkbox {
+	display: inline-flex;
+	vertical-align: text-bottom;
+	width: 16;
+	height: 16;
+	background-size: 16px;
+	margin-left: 2px;
+	margin-right: 5px;
+}
+
+.checkbox-on {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20width%3D%2216%22%20height%3D%2216%22%20fill%3D%22%2358A9D7%22%2F%3E%0A%3Cpath%20d%3D%22M6.71429%2012.2852L14%204.9995L12.7143%203.71436L6.71429%209.71378L3.28571%206.2831L2%207.57092L6.71429%2012.2852Z%22%20fill%3D%22white%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+
+.checkbox-off {
+	background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2016%2016%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%3Crect%20x%3D%220.75%22%20y%3D%220.75%22%20width%3D%2214.5%22%20height%3D%2214.5%22%20fill%3D%22white%22%20stroke%3D%22%2336352F%22%20stroke-width%3D%221.5%22%2F%3E%0A%3C%2Fsvg%3E");
+}
+	
+</style></head><body><article id="2ea0b0f2-fe87-8074-b5a4-eb035e4fd72e" class="page sans"><header><h1 class="page-title" dir="auto">V1.1 产品需求</h1><p class="page-description" dir="auto"></p></header><div class="page-body"><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-803a-bac4-f44c2f79eec1" class="">
+</p></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-80cf-9b26-e968d16fb1b1" class="">
+</p></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-80c6-8323-d2ee479afc58" class="">
+</p></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-80a7-adf3-c5dc48340bfb" class="">1. 产品愿景与定位 (Vision &amp; Positioning)</h2></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80fe-a536-ef1329b8211c" class="">1.1 一句话介绍</h3></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-80aa-bfc2-fb37cab1c110" class=""><strong>iHR</strong> 是智联招聘为业务负责人（Hiring Manager）配备的 <strong>“AI 初筛面试助理”</strong>。它通过<strong>纯语音电话</strong>替你完成简历验真与风险排查，将 15 分钟的低效通话转化为 30 秒的高效阅卷（红笔批注报告）。</p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80d0-84d7-c7cd4bf9965d" class="">1.2 核心价值</h3></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-8046-960c-c36a888c8a8e" class="bulleted-list"><li style="list-style-type:disc"><strong>For B 端</strong>：<strong>“雇佣一个 AI，省掉整个初筛团队。”</strong> 解放时间，不听 AI 黑盒评分，只看 AI 采集的白盒证据。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80e4-8cc6-c25202e52eeb" class="bulleted-list"><li style="list-style-type:disc"><strong>For C 端</strong>：<strong>“尊重习惯，极速反馈。”</strong> 无需下载 App，像接猎头电话一样自然，换取高确定性的进面机会。</li></ul></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-8089-8ac5-fa514dcde421" class="">
+</p></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-80b7-9069-eb73b9131137"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-8040-8297-e889d210cd3e" class="">2. 核心引擎：可验证分层与路由规则 (The Core Engine)</h2></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-8099-ba0c-e6004e27151f" class=""><em>(本章严禁修改)</em></p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-808b-b86f-eabe6472b37a" class="">2.1 L1-L4 分层验证模型 (The Verifiable Model)</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-80ad-9512-dab7557f83ee" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80de-bf5b-d888ebea2ea2"><th id="OjFP" class="simple-table-header-color simple-table-header">层级</th><th id="s=WK" class="simple-table-header-color simple-table-header">考察维度</th><th id="kws~" class="simple-table-header-color simple-table-header">验证策略 (Tactics)</th><th id=";h_x" class="simple-table-header-color simple-table-header">AI 输出规则 (Output Rule)</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-800d-9108-e50078942cf3"><td id="OjFP" class=""><strong>L1</strong></td><td id="s=WK" class=""><strong>硬门槛</strong>&lt;br&gt;(薪资/学历/到岗)</td><td id="kws~" class=""><strong>刚性核对</strong>&lt;br&gt;“预算30k，你能接受吗？”</td><td id=";h_x" class=""><strong>✅/❌ 状态标签</strong>&lt;br&gt;允许直接判定是否符合。</td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8012-b598-c7f552dba2ab"><td id="OjFP" class=""><strong>L2</strong></td><td id="s=WK" class=""><strong>动机与风险</strong>&lt;br&gt;(离职/空窗/跳槽)</td><td id="kws~" class=""><strong>逻辑对撞</strong>&lt;br&gt;“为何放弃大厂去创业又回来？”</td><td id=";h_x" class=""><strong>⚠️ 线索提示</strong>&lt;br&gt;禁止下结论（如“不稳定”），只列出疑点和录音。</td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8039-9fa9-d6becf156fd0"><td id="OjFP" class=""><strong>L3</strong></td><td id="s=WK" class=""><strong>真实性核验</strong>&lt;br&gt;(MVP 核心战场)</td><td id="kws~" class=""><strong>痛苦回忆 / 细节深挖</strong>&lt;br&gt;“那个故障的具体表现是什么？你怎么排查的？”</td><td id=";h_x" class=""><strong>🔍 事实观察</strong>&lt;br&gt;允许评价置信度（High/Mid/Low），必须附带证据。</td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8079-b1f1-d488a6f0c564"><td id="OjFP" class=""><strong>L4</strong></td><td id="s=WK" class=""><strong>冰山下素质</strong>&lt;br&gt;(沟通/抗压/协作)</td><td id="kws~" class=""><strong>情境模拟 (Simulation)</strong>&lt;br&gt;AI 扮演刁钻客户/强势 PM 进行施压。</td><td id=";h_x" class=""><strong>📝 行为记录</strong>&lt;br&gt;禁止评价人格（如“抗压好”），只记录行为（如“被打断时语速平稳”）。</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-8082-901e-f09e8972ea50" class="">2.2 路由三态决策逻辑 (Routing Rules)</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-8013-873d-f6af487ec758" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80d2-bec4-c0091191aa9a"><th id="ts:L" class="simple-table-header-color simple-table-header">状态</th><th id="idf{" class="simple-table-header-color simple-table-header">触发条件 (Trigger Logic)</th><th id="_Y`L" class="simple-table-header-color simple-table-header">输出内容</th><th id="WT;o" class="simple-table-header-color simple-table-header">含义</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80c7-84ed-dc79574020f2"><td id="ts:L" class=""><strong>🟢 Proceed</strong>&lt;br&gt;(推进)</td><td id="idf{" class=""><strong>L1</strong> 全通过 &lt;br&gt;AND <strong>L3</strong> 置信度 High/Mid &lt;br&gt;AND <strong>L2</strong> 无重大疑点 &lt;br&gt;AND <strong>L4</strong> 无合规/情绪红线。</td><td id="_Y`L" class="">建议进入下一轮 + 可选追问。</td><td id="WT;o" class="">硬伤已排查，值得聊。</td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8021-81e7-fc393c9861e1"><td id="ts:L" class=""><strong>🟡 Follow-ups</strong>&lt;br&gt;(带追问推进)</td><td id="idf{" class=""><strong>L1</strong> 通过 &lt;br&gt;AND (<strong>L3</strong> 存在缺口 OR <strong>L2</strong> 解释含糊)。</td><td id="_Y`L" class=""><strong>强制生成 3 条必问追问</strong>（带证据锚点）。</td><td id="WT;o" class="">人还行，有疑点，<strong>带着问题去面</strong>。</td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80c9-bb0e-c4323bdc9683"><td id="ts:L" class=""><strong>🔴 Hold</strong>&lt;br&gt;(暂缓/需补证据)</td><td id="idf{" class=""><strong>H-A</strong>: 关键证据不足（L3 Low）。&lt;br&gt;<strong>H-B</strong>: 关键矛盾未澄清（L2 前后冲突）。&lt;br&gt;<strong>H-C</strong>: <strong>L4 触犯红线</strong>（辱骂/挂断/极端情绪）。</td><td id="_Y`L" class=""><strong>强制输出 2 条补救动作</strong>：&lt;br&gt;1. 补问动作。&lt;br&gt;2. 补材料动作。</td><td id="WT;o" class=""><strong>不直接淘汰</strong>，而是挂起。只有人类能点击“淘汰”。</td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-8061-bed4-fad415ff9f00" class="">2.3 输出规范：原子化五段式语法 (Atomic Syntax)</h3></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-8033-958c-f56f91c0aa01" class="numbered-list" start="1"><li><strong>Observation (观察)</strong>：客观描述事实。</li></ol></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-806d-b0a8-fddf1a5afbdf" class="numbered-list" start="2"><li><strong>Evidence Anchor (证据锚点)</strong>：点击直接跳转 30-60秒 原声切片。</li></ol></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-8006-9ada-e2cadcf41a14" class="numbered-list" start="3"><li><strong>Confidence (置信度)</strong>：基于规则触发 (High/Mid/Low)。</li></ol></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-8039-a4e4-e5eadce4d767" class="numbered-list" start="4"><li><strong>Gap (缺口)</strong>：明确指出“没问出来”或“回答缺失”的部分。</li></ol></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-803d-81ad-cb8f4008c30c" class="numbered-list" start="5"><li><strong>Next Question (建议追问)</strong>：交给经理的一句话复核题。</li></ol></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-8045-87c0-c8e71db52c5e"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-803b-8843-d0ec59cbc041" class="">3. 多岗位适配策略与规则集 (Role-Specific Rules)</h2></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-8059-95c4-ca1911934f79" class=""><em>(本章严禁修改)</em></p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80ec-ad7d-f0cfdff48ce1" class="">3.1 工程师 (Tech) - 前端/后端</h3></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80df-a73a-c459be628707" class="bulleted-list"><li style="list-style-type:disc"><strong>L3 (真实性)</strong>：<strong>High</strong> (能说出具体指标 + 完整排查链条 + 技术 Trade-off) vs <strong>Low</strong> (泛化背诵概念，无场景细节)。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80d3-9164-c305523168e3" class="bulleted-list"><li style="list-style-type:disc"><strong>L4 (素质)</strong>：AI 扮演强势 PM。记录是否提出替代方案 (High) vs 直接拒绝/无条件服从 (Low)。</li></ul></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-801c-80bf-e9adb013bbb5" class="">3.2 电话销售 (Telesales) - CC/普销</h3></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-8013-9d21-e90c94c96e5b" class="bulleted-list"><li style="list-style-type:disc"><strong>L3 (真实性)</strong>：<strong>High</strong> (能复述销冠话术逻辑，能量化过往业绩)。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80ba-9300-eac0e7dd6190" class="bulleted-list"><li style="list-style-type:disc"><strong>L4 (素质)</strong>：<strong>高压 Roleplay</strong>。记录被拒绝后 10秒内是否抛出新钩子 (High) vs 情绪失控 (Low)。</li></ul></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-8045-bee4-d8f6b21600b7" class="">3.3 大客户销售 (KA) - 解决方案销售</h3></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-8073-9361-dfdafd984fbd" class="bulleted-list"><li style="list-style-type:disc"><strong>L3 (真实性)</strong>：<strong>High</strong> (清晰描述决策链 + 关键一击动作)。<strong>Low</strong> (描述过度抽象，无法拆解动作)。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80bd-bd3d-fa7f886e53ac" class="bulleted-list"><li style="list-style-type:disc"><strong>L4 (素质)</strong>：<strong>案例复盘</strong>。记录逻辑防御能力 + 商业互惠思维。</li></ul></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-803d-b9af-d49204f6eefb"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-800d-8ab4-fe041d162034" class="">4. 业务流程与交互 (Workflow)</h2></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-8040-984c-e95c49f2f14c" class=""><em>(本章已根据最新交互方案更新)</em></p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80d0-be58-f8974854e8a8" class="">4.1 B 端：侧边栏插件 (Side Panel)</h3></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-803f-b1a9-e88021f1668a" class="bulleted-list"><li style="list-style-type:disc"><strong>入口</strong>：浏览器插件侧边栏。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80f7-9879-fbd2a2c21171" class="bulleted-list"><li style="list-style-type:disc"><strong>流程</strong>：打开侧边栏 → 拖入简历/自动抓取 → 意图确认 → 一键发起 → 侧边栏监控 → 全屏阅卷决策。</li></ul></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-8043-a88d-d0ff2766d4a5" class="">4.2 C 端：纯语音话务员 (Visual Audio)</h3></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-8062-9c4c-eb6eba195bb1" class="bulleted-list"><li style="list-style-type:disc"><strong>入口</strong>：短信链接。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80ce-a402-d6d2be189c15" class="bulleted-list"><li style="list-style-type:disc"><strong>交互</strong>：点击链接 → 浏览器 WebRTC 通话（含视觉波纹与辅助卡片）→ 拟人化打断/动态追问。</li></ul></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-801f-909e-d5afab1adce1"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-80ec-aeda-e0d29eecb224" class="">5. 产品功能清单 (Feature List - Updated)</h2></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-80ab-ae13-da791870f85f" class=""><em>(本章已根据 B 端侧边栏与 C 端候考室逻辑重写)</em></p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80e0-be38-ff48b87d68f8" class="">🟢 模块一：B 端 · 侧边栏任务台 (Manager Side Panel)</h3></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-802b-a544-c9ce6a953e23" class=""><strong>形态</strong>：浏览器侧边栏插件 (Side Panel) + 全屏详情页 (New Tab)。</p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-8046-81c6-d99e9453ce48" class="">5.1.1 侧边栏：任务发起与监控</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-80d1-9226-c05fe6c9ad4a" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8017-9f3b-d013dfcc90f7"><th id="RD\E" class="simple-table-header-color simple-table-header">ID</th><th id="juPR" class="simple-table-header-color simple-table-header">功能名称</th><th id="ct{B" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="={Pl" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8060-af9e-e5052415cd2a"><td id="RD\E" class=""><strong>B-01</strong></td><td id="juPR" class=""><strong>侧边栏拖拽上传</strong></td><td id="ct{B" class="">浏览器右侧常驻面板。提供大面积虚线 Drop Zone，支持拖拽 PDF/JPG 简历，无需跳转页面。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80d3-8910-cc11aa862ee9"><td id="RD\E" class=""><strong>B-02</strong></td><td id="juPR" class=""><strong>简历自动解析</strong></td><td id="ct{B" class="">上传后调用 OCR/Parser 提取姓名、手机号、职位。<strong>异常处理</strong>：若解析失败或无手机号，提供 Input 框支持用户手动补全。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8003-a71b-c18b5c2c9641"><td id="RD\E" class=""><strong>B-03</strong></td><td id="juPR" class=""><strong>意图确认卡片</strong></td><td id="ct{B" class="">解析完成后弹出卡片（替代复杂表单）。展示候选人摘要（姓名/年限/推荐岗位）。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-804f-b903-d58038b15685"><td id="RD\E" class=""><strong>B-04</strong></td><td id="juPR" class=""><strong>标签云微调</strong></td><td id="ct{B" class="">在卡片上展示考察维度 Tag（如 <code>[✅项目真实性]</code>）。&lt;br&gt;1. 支持点选 <code>[⚪️英语]</code> 等标签快速增加 Prompt 侧重。&lt;br&gt;2. <strong>隐性批量</strong>：未关闭会话前，后续上传的简历自动继承当前标签配置。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80cc-86f2-eab57ace1a64"><td id="RD\E" class=""><strong>B-05</strong></td><td id="juPR" class=""><strong>高级设置</strong></td><td id="ct{B" class="">(折叠项) 允许 B 端进行更深度的干预：&lt;br&gt;1. 开启/关闭 L2 风险强校验。&lt;br&gt;2. 调整销售岗压力级别 (S1/S2/S3)。</td><td id="={Pl" class="">P1</td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8055-839f-f92f41dfd6ee"><td id="RD\E" class=""><strong>B-06</strong></td><td id="juPR" class=""><strong>一键呼叫</strong></td><td id="ct{B" class="">点击后生成任务 ID，触发 AI 引擎。侧边栏顶部显示“正在呼叫”动态胶囊。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-805e-b2dd-d23648167075"><td id="RD\E" class=""><strong>B-07</strong></td><td id="juPR" class=""><strong>卡片流展示</strong></td><td id="ct{B" class="">按时间倒序展示候选人卡片。状态流转：待触达 $\rightarrow$ 已邀请 $\rightarrow$ 面试中 (显示计时) $\rightarrow$ 已交付 / 超时。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8023-9564-cec7ce86b16f"><td id="RD\E" class=""><strong>B-08</strong></td><td id="juPR" class=""><strong>全链路日志</strong></td><td id="ct{B" class="">鼠标悬停卡片显示详细 Timeline：<code>14:00 短信送达</code> $\rightarrow$ <code>14:30 AI语音通知(未接通)</code> $\rightarrow$ <code>15:00 WebRTC接通</code>。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8021-9f19-d3b290ef72c0"><td id="RD\E" class=""><strong>B-09</strong></td><td id="juPR" class=""><strong>手动干预</strong></td><td id="ct{B" class="">提供 <strong>[复制邀请链接]</strong> (应对短信拦截) 和 <strong>[🔔 立即催促]</strong> (重发通知) 按钮。</td><td id="={Pl" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-8008-97dc-c2e02f634654" class="">5.1.2 全屏详情页：沉浸式阅卷</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-800f-a5cf-da51ac513391" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-809c-99c5-d7ff85963224"><th id=":Kpe" class="simple-table-header-color simple-table-header">ID</th><th id="p&lt;eM" class="simple-table-header-color simple-table-header">功能名称</th><th id="UOk[" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="pw^Y" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80c5-8828-e5850e9ff8af"><td id=":Kpe" class=""><strong>B-10</strong></td><td id="p&lt;eM" class=""><strong>分栏联动布局</strong></td><td id="UOk[" class="">点击侧边栏卡片在新标签页打开。左侧 50% 为原始 PDF Viewer，右侧 50% 为 AI 报告。</td><td id="pw^Y" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-807d-a2eb-d91fa92cb600"><td id=":Kpe" class=""><strong>B-11</strong></td><td id="p&lt;eM" class=""><strong>L1 硬门槛展示</strong></td><td id="UOk[" class="">顶部 Badge 展示：<code>[💰 薪资匹配 ✅]</code> <code>[🎓 学历达标 ✅]</code> <code>[📅 到岗时间 ⚠️]</code>。</td><td id="pw^Y" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8091-8f0c-cf745fd2d1a7"><td id=":Kpe" class=""><strong>B-12</strong></td><td id="p&lt;eM" class=""><strong>五段式卡片</strong></td><td id="UOk[" class="">针对 L2/L3/L4 的每条结论，展示标准结构：Observation + Evidence Anchor + Confidence + Gap + Next Question。</td><td id="pw^Y" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80ac-8058-c1ff9327f081"><td id=":Kpe" class=""><strong>B-13</strong></td><td id="p&lt;eM" class=""><strong>证据播放器</strong></td><td id="UOk[" class="">点击 Evidence Anchor，自动播放对应的 30-90s 录音切片（支持倍速）。<strong>交互联动</strong>：播放时，左侧 PDF 尝试滚动到相关段落。</td><td id="pw^Y" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8062-8368-c46f2dcb7995"><td id=":Kpe" class=""><strong>B-14</strong></td><td id="p&lt;eM" class=""><strong>纠错反馈</strong></td><td id="UOk[" class="">每条 Observation 旁的小按钮 <code>[👎]</code>。点击弹出选项：A.事实错误 B.评价不当。用于数据回流。</td><td id="pw^Y" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80b0-897b-c09f74cf9672"><td id=":Kpe" class=""><strong>B-15</strong></td><td id="p&lt;eM" class=""><strong>三态路由决策</strong></td><td id="UOk[" class="">底部悬浮固定栏：<code>[🟢 推进]</code> <code>[🟡 待定(生成追问)]</code> <code>[🔴 暂缓]</code>。点击后更新状态并关闭页面。</td><td id="pw^Y" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-80eb-a725-cdf0706919da"/></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80a7-94cf-f87b074c90ca" class="">🔵 模块二：C 端 · 语音话务员 (Candidate Audio Interface)</h3></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-8010-8949-e1f034942a86" class=""><strong>形态</strong>：移动端 H5，<strong>无视频画面</strong>，<strong>无代码编辑器</strong>。</p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80ed-af53-ec865d45c7ec" class="">5.2.1 落地页：线上候考室</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-8082-bd7f-e92459578e9e" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80b3-95f6-fa25e8abfc33"><th id="K@HI" class="simple-table-header-color simple-table-header">ID</th><th id="wHTn" class="simple-table-header-color simple-table-header">功能名称</th><th id="JROF" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="^z\&lt;" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8084-a697-ea8b649c8fb3"><td id="K@HI" class=""><strong>C-01</strong></td><td id="wHTn" class=""><strong>信任落地页</strong></td><td id="JROF" class="">短信 Token 鉴权。Header 展示 <strong>智联招聘 X [企业名称]</strong> Logo。显示职位信息、15分钟时长预期。</td><td id="^z\&lt;" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-808c-b9b5-dc8a95fcdcac"><td id="K@HI" class=""><strong>C-02</strong></td><td id="wHTn" class=""><strong>设备检测 (Gate)</strong></td><td id="JROF" class="">底部按钮 <code>[测试麦克风]</code>。逻辑：点击后必须检测到音量条跳动，<code>[开始面试]</code> 按钮才从置灰变为可点击。</td><td id="^z\&lt;" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80b0-9a5b-d9e6ccf1207e"><td id="K@HI" class=""><strong>C-03</strong></td><td id="wHTn" class=""><strong>防锁屏初始化</strong></td><td id="JROF" class="">页面加载时初始化 <code>NoSleep.js</code>，防止手机熄屏导致 WebSocket 断开。</td><td id="^z\&lt;" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80de-b339-cdce62134b9b" class="">5.2.2 通话页：沉浸式会议</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-802e-b3ee-f2bce1d7f7c4" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8080-a21a-c4bbfe9d7b52"><th id="A=B:" class="simple-table-header-color simple-table-header">ID</th><th id="agB_" class="simple-table-header-color simple-table-header">功能名称</th><th id="RiRU" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="k?;X" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8006-b3a9-f64641854812"><td id="A=B:" class=""><strong>C-04</strong></td><td id="agB_" class=""><strong>全双工语音流</strong></td><td id="RiRU" class="">集成 OpenAI Realtime API。<strong>性能指标</strong>：端到端延迟 &lt; 800ms。</td><td id="k?;X" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8017-9012-c06b6e3df8f1"><td id="A=B:" class=""><strong>C-05</strong></td><td id="agB_" class=""><strong>智能打断</strong></td><td id="RiRU" class="">VAD (语音活动检测) 策略。检测到 C 端说话音量 &gt; 阈值时，AI 必须毫秒级停止发声。</td><td id="k?;X" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8031-a0fd-e0e780e2bcdd"><td id="A=B:" class=""><strong>C-06</strong></td><td id="agB_" class=""><strong>动态声波纹</strong></td><td id="RiRU" class="">视觉中心。AI 说话时显示蓝色律动波纹，用户说话时显示绿色扩散波纹（给予“我在听”的视觉反馈）。</td><td id="k?;X" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80b9-9f09-ecb7d4de2fa1"><td id="A=B:" class=""><strong>C-07</strong></td><td id="agB_" class=""><strong>辅助信息卡片</strong></td><td id="RiRU" class="">屏幕下方半透明浮层。<strong>技术岗特有</strong>：当 AI 问到代码题时，卡片自动展开，显示<strong>代码截图</strong>（解决纯语音无法描述代码的问题）。</td><td id="k?;X" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8018-abe0-ce5fee5e75ea"><td id="A=B:" class=""><strong>C-08</strong></td><td id="agB_" class=""><strong>异常处理</strong></td><td id="RiRU" class=""><strong>锁屏/切后台</strong>：检测到后台运行尝试保持心跳，断开后切回显示全屏重连弹窗。&lt;br&gt;<strong>网络波动</strong>：丢包率 &gt; 10% 时，顶部弹出黄色 Toast 提示。</td><td id="k?;X" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8059-818b-d7c1ea1b596d"><td id="A=B:" class=""><strong>C-09</strong></td><td id="agB_" class=""><strong>结束流程</strong></td><td id="RiRU" class="">15分钟到或 AI 判定结束，致谢后自动挂断。跳转至“面试完成卡”静态页。</td><td id="k?;X" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8094-b906-dc51a4f38963"><td id="A=B:" class=""></td><td id="agB_" class=""></td><td id="RiRU" class=""></td><td id="k?;X" class=""></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-8046-ac1e-d3688d612573"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-80ec-9949-e4df0dce932e" class="">6. 模块三：AI 核心引擎 (The Core Engine - Full Detail)</h2></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-80e2-91dd-d005e45b3b0b" class=""><em>(本章节定义后端 AI 逻辑，已补全状态机与提取逻辑)</em></p></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80ee-9e68-db61d8d59774" class="">6.1 生成策略 (Pre-Call Strategy)</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-804f-a467-eff453890a7c" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80a5-b400-e0b86c011393"><th id="z{pi" class="simple-table-header-color simple-table-header">ID</th><th id="[xTT" class="simple-table-header-color simple-table-header">功能名称</th><th id="=[it" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="MbZW" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80a7-9885-fadec9bebc6b"><td id="z{pi" class=""><strong>E-01</strong></td><td id="[xTT" class=""><strong>JD 与简历联合解析</strong></td><td id="=[it" class="">同时输入 PDF 文本与岗位 JD。生成：&lt;br&gt;1. <strong>L1 基础题</strong>（核对 JD 硬性要求）；&lt;br&gt;2. <strong>L3 基础题</strong>（基于 JD 核心技能生成）。</td><td id="MbZW" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80fe-bdb0-d34bc0e8811a"><td id="z{pi" class=""><strong>E-02</strong></td><td id="[xTT" class=""><strong>简历疑点挖掘 (个性题)</strong></td><td id="=[it" class=""><strong>(关键差异点)</strong> 专门针对简历进行“找茬”：&lt;br&gt;1. <strong>时间线分析</strong>：识别空窗期、短跳槽（生成 L2 追问）；&lt;br&gt;2. <strong>项目深挖</strong>：提取项目关键词，生成 L3 具体场景追问。</td><td id="MbZW" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-80f1-969f-e96afdb8c563"><td id="z{pi" class=""><strong>E-03</strong></td><td id="[xTT" class=""><strong>Prompt 路由 (岗位分发)</strong></td><td id="=[it" class="">根据 B-03 的定岗 Tag，加载不同的 System Prompt 模板：&lt;br&gt;- <strong>Tech</strong>: &quot;你是严苛的技术官...&quot;&lt;br&gt;- <strong>Sales</strong>: &quot;你是暴躁的客户...&quot;</td><td id="MbZW" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80b7-9161-da2bf7b18fe8" class="">6.2 对话状态机 (In-Call State Machine)</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-8060-9027-e9a3850169d7" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8017-b922-d02e32ba99c4"><th id="~=au" class="simple-table-header-color simple-table-header">ID</th><th id="KJ}M" class="simple-table-header-color simple-table-header">功能名称</th><th id="LIZr" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="UC[a" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8090-ae4d-e9d09bbb6f22"><td id="~=au" class=""><strong>E-04</strong></td><td id="KJ}M" class=""><strong>阶段控制器 (Phase Control)</strong></td><td id="LIZr" class="">严格控制 15 分钟流程，防止 AI 聊嗨了：&lt;br&gt;1. 破冰 (1m) $\rightarrow$ 2. L1核对 (2m) $\rightarrow$ 3. L3技术深挖 (8m) $\rightarrow$ 4. L2/L4 (3m) $\rightarrow$ 5. 结束 (1m)。</td><td id="UC[a" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8038-bd2c-d4db152ead2e"><td id="~=au" class=""><strong>E-05</strong></td><td id="KJ}M" class=""><strong>动态追问逻辑 (Drill Down)</strong></td><td id="LIZr" class="">实时检测 C 端回答质量：&lt;br&gt;1. 若回答字数 &lt; 10 或全是书面语 $\rightarrow$ 触发 <code>drill_down</code> 指令（“请举具体例子”）。&lt;br&gt;2. 若检测到 Sales 压力点 $\rightarrow$ 触发 <code>Roleplay</code> 模式。</td><td id="UC[a" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8056-a207-c25ff229d820"><td id="~=au" class=""><strong>E-06</strong></td><td id="KJ}M" class=""><strong>风控熔断</strong></td><td id="LIZr" class="">实时监测双向音频流。若检测到敏感词（辱骂/性暗示/涉政）或 C 端明确拒绝 $\rightarrow$ 立即调用 <code>terminate_call</code> 并打标。</td><td id="UC[a" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><h3 id="2ea0b0f2-fe87-80c7-bada-e2fa2a6460be" class="">6.3 分析与生成 (Post-Call Processing)</h3></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-80cc-a18b-e679d6578316" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8036-b4e1-d0915819d673"><th id="fRFo" class="simple-table-header-color simple-table-header">ID</th><th id="AUe;" class="simple-table-header-color simple-table-header">功能名称</th><th id="u=?q" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="agvD" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8076-b1e3-d52c1960f511"><td id="fRFo" class=""><strong>E-07</strong></td><td id="AUe;" class=""><strong>ASR 角色分离</strong></td><td id="u=?q" class="">将录音转录为文本。<strong>关键要求</strong>：准确分离 AI 与 User 角色，并保留<strong>毫秒级时间戳</strong>（用于前端播放器跳转）。</td><td id="agvD" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8003-9f0d-ef87ed31c42e"><td id="fRFo" class=""><strong>E-08</strong></td><td id="AUe;" class=""><strong>事实提取 (Fact Extraction)</strong></td><td id="u=?q" class="">从非结构化对话中提取结构化字段：&lt;br&gt;- L1 答案（如“期望薪资：25k”）；&lt;br&gt;- L3 关键行为（如“排查步骤：看日志-&gt;重启”）。</td><td id="agvD" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8038-b9f9-f76bc8bb298a"><td id="fRFo" class=""><strong>E-09</strong></td><td id="AUe;" class=""><strong>置信度计算</strong></td><td id="u=?q" class="">运行 <strong>规则引擎 (Rule Engine)</strong>：将提取的事实与 <code>L3_Rules</code> 比对，输出 High/Mid/Low。</td><td id="agvD" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8079-ae81-f63bfc0ee1a8"><td id="fRFo" class=""><strong>E-10</strong></td><td id="AUe;" class=""><strong>报告渲染</strong></td><td id="u=?q" class="">组装五段式 JSON 数据：<code>{ observation, evidence_start, evidence_end, confidence, gap, next_question }</code>。</td><td id="agvD" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-8000-9f25-d598b4ea0bd7"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-80e5-b7b7-ff88eb4fea66" class="">7. 模块四：运营与监控 (Ops - Full Detail)</h2></div><div style="display:contents" dir="ltr"><table id="2ea0b0f2-fe87-80ce-9102-d3839073d5d8" class="simple-table"><thead class="simple-table-header"><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8071-802f-e8b0c07f0283"><th id="LH|e" class="simple-table-header-color simple-table-header">ID</th><th id="uMjc" class="simple-table-header-color simple-table-header">功能名称</th><th id="RNP?" class="simple-table-header-color simple-table-header">详细逻辑描述</th><th id="u&gt;xb" class="simple-table-header-color simple-table-header">优先级</th></tr></div></thead><tbody><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8040-aa3b-f9719d8fb3e4"><td id="LH|e" class=""><strong>O-01</strong></td><td id="uMjc" class=""><strong>三件套仪表盘</strong></td><td id="RNP?" class="">Admin 首页实时展示 MVP 核心指标：&lt;br&gt;1. <strong>完成率</strong> (Supply Health)&lt;br&gt;2. <strong>B端平均阅卷时长</strong> (Efficiency)&lt;br&gt;3. <strong>一面推进率</strong> (Quality - 需支持手工导入后验数据)。</td><td id="u&gt;xb" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8001-badc-c1b99695af97"><td id="LH|e" class=""><strong>O-02</strong></td><td id="uMjc" class=""><strong>通话质量监控</strong></td><td id="RNP?" class=""><strong>(新增)</strong> 针对 WebRTC 的技术监控：&lt;br&gt;1. <strong>ASR 错误率</strong> (转录失败/为空的比例)；&lt;br&gt;2. <strong>WebRTC 掉线率</strong> (异常中断比例)；&lt;br&gt;3. <strong>平均延迟</strong> (P95 Latency)。</td><td id="u&gt;xb" class=""><strong>P1</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8080-b4f9-c51e5b3bc647"><td id="LH|e" class=""><strong>O-03</strong></td><td id="uMjc" class=""><strong>Prompt 热更新</strong></td><td id="RNP?" class="">支持在不发版的情况下，在线调整 Tech/Sales 的 System Prompt 及 L3 判分规则。</td><td id="u&gt;xb" class=""><strong>P0</strong></td></tr></div><div style="display:contents" dir="ltr"><tr id="2ea0b0f2-fe87-8048-b329-c313175730e4"><td id="LH|e" class=""><strong>O-04</strong></td><td id="uMjc" class=""><strong>白名单管理</strong></td><td id="RNP?" class="">管理智联内部参与试点的 B 端账号权限 (OpenID/EmployeeID)。</td><td id="u&gt;xb" class=""><strong>P0</strong></td></tr></div></tbody></table></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-80c1-8286-ee61a5c32b24"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-80f2-8281-f6d2bb5cdfa1" class="">9. 核心指标与埋点 (KPI &amp; Metrics)</h2></div><div style="display:contents" dir="auto"><p id="2ea0b0f2-fe87-80a6-b100-c849e2c6ba3e" class="">MVP 阶段聚焦 <strong>“三件套”</strong> 指标：</p></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-8086-b674-ebf558ebabc4" class="numbered-list" start="1"><li><strong>供给侧健康度 (完成率)</strong>：短信触达后，完成 15 分钟通话的人数占比。<div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-806e-9598-d39f773138d3" class="bulleted-list"><li style="list-style-type:disc"><em>目标</em>：&gt; 40% (参考猎头电话接通率)。</li></ul></div></li></ol></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-80c4-ae9a-fbb5c7c61934" class="numbered-list" start="2"><li><strong>B 端效率增益 (阅卷时长)</strong>：从打开报告到做出决策的平均时长。<div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80ad-88da-f3bbb5fef77a" class="bulleted-list"><li style="list-style-type:disc"><em>目标</em>：&lt; 30秒。</li></ul></div></li></ol></div><div style="display:contents" dir="auto"><ol type="1" id="2ea0b0f2-fe87-8017-adfc-de413bea45bb" class="numbered-list" start="3"><li><strong>决策质量 (一面推进率)</strong>：Proceed/Follow-ups 的候选人中，通过一面的比例。<div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80ef-8651-eaa400686e36" class="bulleted-list"><li style="list-style-type:disc"><em>目标</em>：较人工初筛提升 20%。</li></ul></div></li></ol></div><div style="display:contents" dir="auto"><hr id="2ea0b0f2-fe87-805b-88cc-ef2dab9b598b"/></div><div style="display:contents" dir="auto"><h2 id="2ea0b0f2-fe87-8075-8361-d4baf48934d0" class="">10. 非功能性需求 (NFR)</h2></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-80ec-83e9-ee999fe94c61" class="bulleted-list"><li style="list-style-type:disc"><strong>延迟</strong>：AI 语音响应 P95 &lt; 800ms。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-8090-8837-fa7d8d581d95" class="bulleted-list"><li style="list-style-type:disc"><strong>并发</strong>：支持内部试点期 50 路并发通话。</li></ul></div><div style="display:contents" dir="auto"><ul id="2ea0b0f2-fe87-8082-b962-d7c72cd4e189" class="bulleted-list"><li style="list-style-type:disc"><strong>数据安全</strong>：所有通话录音及转录文本脱敏存储，保留期 6 个月。</li></ul></div></div></article><span class="sans" style="font-size:14px;padding-top:2em"></span></body></html>
