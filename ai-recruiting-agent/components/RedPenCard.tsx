@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Observation, SignalType } from '../types';
-import { Play, Mic2, AlertTriangle, AlertOctagon, CheckCircle2, MessageSquareQuote, ChevronRight, Pause } from 'lucide-react';
+import { Play, Mic2, AlertTriangle, AlertOctagon, CheckCircle2, MessageSquareQuote, ChevronRight, ChevronDown, Pause } from 'lucide-react';
 
 interface RedPenCardProps {
   data: Observation;
+  isHighlighted?: boolean;
 }
 
-const RedPenCard: React.FC<RedPenCardProps> = ({ data }) => {
+const RedPenCard: React.FC<RedPenCardProps> = ({ data, isHighlighted = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(true);
 
   const getSignalStyle = (signal: SignalType) => {
     switch (signal) {
@@ -54,50 +56,65 @@ const RedPenCard: React.FC<RedPenCardProps> = ({ data }) => {
   const style = getSignalStyle(data.signalType);
 
   return (
-    <div className={`group relative rounded-xl p-5 shadow-sm hover:shadow-md transition-all border border-l-[4px] cursor-pointer ${style.bg} ${style.border} ${style.borderLeft}`}>
+    <div className={`group relative rounded-xl p-3 shadow-sm hover:shadow-md transition-all border border-l-[4px] cursor-pointer ${style.bg} ${style.border} ${style.borderLeft} ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 shadow-yellow-100' : ''}`}>
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-wide">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-wide">
             {data.category}
         </span>
-        <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${style.badge}`}>
+        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${style.badge}`}>
             {style.icon} {style.label}
         </div>
       </div>
 
       {/* Title - L2 Module Title */}
-      <h4 className="text-sm font-bold text-slate-900 mb-2">{data.title}</h4>
+      <h4 className="text-[12px] font-bold text-slate-900 mb-1.5 leading-snug">{data.title}</h4>
       
-      {/* Body - L3 Content (Updated to text-sm for readability) */}
-      <p className="text-sm text-slate-600 leading-relaxed mb-4">
+      {/* Body - L3 Content */}
+      <p className="text-xs text-slate-600 leading-snug mb-2.5">
         {data.observation}
       </p>
 
-      {/* Evidence Box (Quote) - L5 Metadata */}
-      <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 relative mb-3">
-             <MessageSquareQuote size={14} className="text-slate-300 absolute top-2 left-2" />
-             <p className="text-xs text-slate-500 italic leading-relaxed pl-5 font-serif">
-                 "{data.quote}"
-             </p>
-      </div>
-
-      {/* Footer / Player - L4 Controls */}
-      <div className="flex items-center justify-between pt-1">
-          <button 
+      {/* Footer / Player + STT Transcript - L4 Controls */}
+      <div className="pt-0.5">
+        {/* 播放行 */}
+        <div className="flex items-center justify-between mb-1.5">
+          <button
             onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-bold transition-all ${isPlaying ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${isPlaying ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
           >
-              {isPlaying ? <Pause size={10} fill="currentColor" /> : <Play size={10} fill="currentColor" />}
-              {isPlaying ? '00:12 / 01:15' : `听原声 ${data.evidenceTime}`}
-              {isPlaying && <div className="flex gap-0.5 h-2 items-center ml-1"><div className="w-0.5 bg-white h-full animate-bounce"></div><div className="w-0.5 bg-white h-2/3 animate-bounce [animation-delay:0.1s]"></div><div className="w-0.5 bg-white h-full animate-bounce [animation-delay:0.2s]"></div></div>}
+            {isPlaying ? <Pause size={9} fill="currentColor" /> : <Play size={9} fill="currentColor" />}
+            {isPlaying ? '00:12 / 01:15' : `听原声 ${data.evidenceTime}`}
+            {isPlaying && <div className="flex gap-0.5 h-1.5 items-center ml-1"><div className="w-0.5 bg-white h-full animate-bounce"></div><div className="w-0.5 bg-white h-2/3 animate-bounce [animation-delay:0.1s]"></div><div className="w-0.5 bg-white h-full animate-bounce [animation-delay:0.2s]"></div></div>}
           </button>
 
-          {data.gap && (
-              <span className={`text-[11px] font-bold flex items-center gap-1 ${style.lightColor}`}>
-                 查看追问 <ChevronRight size={12} />
+          <div className="flex items-center gap-2">
+            {data.gap && (
+              <span className={`text-[10px] font-bold flex items-center gap-0.5 ${style.lightColor}`}>
+                查看追问 <ChevronRight size={11} />
               </span>
-          )}
+            )}
+            {data.quote && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setTranscriptOpen(!transcriptOpen); }}
+                className="text-[10px] text-slate-400 hover:text-slate-600 flex items-center gap-0.5 transition-colors"
+              >
+                文字摘要 <ChevronDown size={10} className={`transition-transform ${transcriptOpen ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* STT 文字摘要区（默认展开） */}
+        {data.quote && transcriptOpen && (
+          <div className="bg-slate-50 rounded-lg px-2.5 py-2 border border-slate-100">
+            <p className="text-[10px] text-slate-500 leading-relaxed">
+              <span className="font-bold text-slate-400 mr-1 not-italic">候选人：</span>
+              {data.quote}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

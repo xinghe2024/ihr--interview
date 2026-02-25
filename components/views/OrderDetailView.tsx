@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ViewState, CandidateStatus, Observation, ResumeSection } from '../../types';
-import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign } from 'lucide-react';
 import RedPenCard from '../RedPenCard';
 
 interface OrderDetailViewProps {
@@ -130,7 +130,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
     // Smart default tab logic
     const smartInitialTab = (defaultTab === 'ANALYSIS' && status !== CandidateStatus.DELIVERED) ? 'TIMELINE' : defaultTab;
-    const [activeTab, setActiveTab] = useState<'ANALYSIS' | 'TIMELINE' | 'RECORDING' | 'RESUME'>(smartInitialTab);
+    const [activeTab, setActiveTab] = useState<'ANALYSIS' | 'TIMELINE' | 'RESUME'>(smartInitialTab);
 
     useEffect(() => {
         if (defaultTab === 'ANALYSIS' && status !== CandidateStatus.DELIVERED) {
@@ -142,6 +142,10 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
     const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
     const [isEvidencePanelOpen, setIsEvidencePanelOpen] = useState(false);
+    const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackTime, setPlaybackTime] = useState(0);
+    const totalDuration = 900; // 15 minutes in seconds
 
     // DECISION HANDLER
     const handleDecision = (type: 'APPROVED' | 'REJECTED') => {
@@ -231,12 +235,22 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const coreSummary = '技术功底扎实，React 架构理解深入；但离职动机描述含糊，微前端项目规模细节存疑。建议二面重点追问上述两点。';
     const followUpQuestions = observations.filter(o => o.nextQuestion);
 
-    // Open evidence panel and scroll to matching observation
+    // Format seconds to MM:SS
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    // Open evidence panel, expand matching segment, scroll to it
     const openEvidenceFor = (sectionId: string) => {
         setActiveSectionId(sectionId);
         setIsEvidencePanelOpen(true);
         const obs = observations.find(o => o.relatedSectionId === sectionId || sectionId.startsWith(o.relatedSectionId || ''));
         if (obs) {
+            // Find the timeline segment linked to this observation
+            const seg = interviewTimeline.find(s => s.obsId === obs.id);
+            if (seg) setExpandedSegmentId(seg.id);
             setTimeout(() => {
                 document.getElementById(`obs-card-${obs.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 300);
@@ -248,183 +262,282 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
         document.getElementById(`resume-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
+    // Toggle segment expand/collapse
+    const toggleSegment = (segId: string) => {
+        setExpandedSegmentId(prev => prev === segId ? null : segId);
+    };
+
+    // Seek to a specific time
+    const seekTo = (seconds: number) => {
+        setPlaybackTime(seconds);
+        setIsPlaying(true);
+    };
+
     // --- SUB-VIEWS ---
+
+    // Interview timeline segments with start/end seconds for scrubber
+    const interviewTimeline = [
+        { id: 'seg_0', startSec: 0, endSec: 180, label: '开场 / 自我介绍', obsId: null, status: 'neutral' as const, transcript: '候选人自我介绍，沟通基本信息和到岗时间意愿。语气自然，表达清晰。' },
+        { id: 'seg_1', startSec: 180, endSec: 330, label: '技术深度：React 架构', obsId: 'o1', status: 'passed' as const, transcript: null },
+        { id: 'seg_2', startSec: 330, endSec: 480, label: '微前端项目经验', obsId: null, status: 'neutral' as const, transcript: '候选人介绍了 qiankun 微前端的接入流程，整体叙述连贯，未发现明显矛盾。' },
+        { id: 'seg_3', startSec: 500, endSec: 550, label: '履历核实：CRM 重构规模', obsId: 'o3', status: 'risk' as const, transcript: null },
+        { id: 'seg_4', startSec: 550, endSec: 720, label: '团队协作与管理', obsId: null, status: 'neutral' as const, transcript: '候选人描述了与后端、设计团队的协作方式，提及每周 Code Review 实践。' },
+        { id: 'seg_5', startSec: 730, endSec: 825, label: '离职动机', obsId: 'o2', status: 'warning' as const, transcript: null },
+        { id: 'seg_6', startSec: 825, endSec: 900, label: '薪资意向 / 结束', obsId: null, status: 'neutral' as const, transcript: '确认薪资范围 29-35K，期望到岗时间 1 个月内。通话正常结束。' },
+    ];
 
     const RenderAnalysisTab = () => {
         const rec = getAIRecommendation();
         const cfg = {
-            Proceed: { emoji: '🟢', label: '建议推进', bg: 'bg-emerald-50/60', border: 'border-emerald-200/80', text: 'text-emerald-800' },
-            FollowUp: { emoji: '🟡', label: '建议补充追问', bg: 'bg-amber-50/60', border: 'border-amber-200/80', text: 'text-amber-800' },
-            Hold: { emoji: '🔴', label: '建议暂缓', bg: 'bg-rose-50/60', border: 'border-rose-200/80', text: 'text-rose-800' },
+            Proceed: { emoji: '🟢', label: '建议面试', accent: 'border-l-emerald-500', accentBg: 'bg-emerald-50/40', text: 'text-emerald-700', border: 'border-slate-200/80' },
+            FollowUp: { emoji: '🟡', label: '建议面试，但需重点关注', accent: 'border-l-amber-400', accentBg: 'bg-amber-50/30', text: 'text-amber-700', border: 'border-slate-200/80' },
+            Hold: { emoji: '🔴', label: '建议暂缓面试', accent: 'border-l-rose-500', accentBg: 'bg-rose-50/40', text: 'text-rose-700', border: 'border-slate-200/80' },
         }[rec.type];
 
         return (
             <div className="flex-1 flex overflow-hidden relative z-10">
-                {/* Left Column: Module 1-4 Vertical Flow */}
-                <div className={`h-full overflow-y-auto scroll-smooth p-8 pb-32 bg-white/60 backdrop-blur-md transition-all duration-300 ${isEvidencePanelOpen ? 'w-[55%] border-r border-white/40' : 'w-full'}`}>
+                {/* Left Column */}
+                <div className={`h-full overflow-y-auto scroll-smooth p-8 pb-32 bg-white/60 backdrop-blur-md transition-all duration-300 ${isEvidencePanelOpen ? 'w-[72%] border-r border-white/40' : 'w-full'}`}>
                     <div className={`mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 ${isEvidencePanelOpen ? 'max-w-[700px]' : 'max-w-[800px]'}`}>
 
-                        {/* ===== MODULE 1: Candidate Profile Header ===== */}
-                        <div className="pb-5 mb-2 border-b border-slate-100">
-                            <div className="flex items-center gap-3 mb-3">
-                                <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                                    {resumeSections.find(s => s.type === 'header')?.content?.name || name}
-                                </h1>
-                                <span className="text-sm text-indigo-600 font-semibold">
-                                    {resumeSections.find(s => s.type === 'header')?.content?.role || role}
-                                </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
-                                <span className="flex items-center gap-1.5"><Briefcase size={14} className="text-slate-400" /> 5年经验</span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                <span className="font-medium text-slate-700">29-35K</span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                <span className="flex items-center gap-1.5"><Clock size={14} className="text-slate-400" /> 1个月内到岗</span>
-                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                <span className="flex items-center gap-1.5"><Phone size={14} className="text-slate-400" /> {resumeSections.find(s => s.type === 'header')?.content?.contact?.split('·')[0]?.trim()}</span>
-                            </div>
-                        </div>
-
-                        {/* ===== MODULE 2: AI Verdict Panel ===== */}
-                        <div className={`rounded-xl border ${cfg.border} ${cfg.bg} p-6`}>
-                            <div className={`text-base font-bold ${cfg.text} mb-3 flex items-center gap-2`}>
-                                <span className="text-lg">{cfg.emoji}</span> AI 初筛结论：{cfg.label}
-                            </div>
-                            <p className="text-sm text-slate-700 leading-relaxed mb-4 pl-7">"{coreSummary}"</p>
-                            <div className="flex flex-wrap gap-2 pl-7">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-bold text-emerald-700">
-                                    <CheckCircle2 size={12} /> 薪资匹配
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md text-xs font-bold text-emerald-700">
-                                    <CheckCircle2 size={12} /> 学历达标
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-md text-xs font-bold text-amber-700">
-                                    <AlertTriangle size={12} /> 到岗时间风险
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* ===== MODULE 3: 建议追问 ===== */}
-                        {followUpQuestions.length > 0 && (
-                            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle size={16} className="text-amber-500" />
-                                        <span className="text-sm font-bold text-slate-800">建议追问</span>
+                        {/* ===== 候选人速览卡 (Merged: Basic Info + AI Verdict + Follow-ups) ===== */}
+                        <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-sm">
+                            {/* --- Top: Basic Info with Avatar --- */}
+                            <div className="px-6 pt-5 pb-4 flex items-start gap-4">
+                                <img src={avatar} alt={name} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-md shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h1 className="text-lg font-bold text-slate-900 tracking-tight">
+                                            {resumeSections.find(s => s.type === 'header')?.content?.name || name}
+                                        </h1>
+                                        <span className="text-[13px] text-slate-500 font-medium">
+                                            {resumeSections.find(s => s.type === 'header')?.content?.role || role}
+                                        </span>
                                     </div>
-                                    <span className="text-xs font-medium px-2 py-0.5 bg-white border border-slate-200 text-slate-500 rounded-full">
-                                        {followUpQuestions.length} 项
-                                    </span>
+                                    <div className="flex items-center gap-3 text-[12px] text-slate-500">
+                                        <span className="flex items-center gap-1"><GraduationCap size={13} className="text-slate-400" />本科</span>
+                                        <span className="text-slate-300">·</span>
+                                        <span className="flex items-center gap-1"><Briefcase size={13} className="text-slate-400" />5年经验</span>
+                                        <span className="text-slate-300">·</span>
+                                        <span className="flex items-center gap-1"><DollarSign size={13} className="text-slate-400" />29-35K</span>
+                                        <span className="text-slate-300">·</span>
+                                        <span className="flex items-center gap-1"><Clock size={13} className="text-slate-400" />1个月内到岗</span>
+                                        <span className="text-slate-300">·</span>
+                                        <span className="flex items-center gap-1"><Phone size={13} className="text-slate-400" />{resumeSections.find(s => s.type === 'header')?.content?.contact?.split('·')[0]?.trim()}</span>
+                                    </div>
                                 </div>
-                                <div className="divide-y divide-slate-100">
-                                    {followUpQuestions.map((q) => {
-                                        const isContradictory = q.signalType === 'CONTRADICTORY';
-                                        return (
-                                            <div key={q.id} className="p-5">
-                                                {/* Observation + Confidence */}
-                                                <div className="flex items-start gap-2 mb-2">
-                                                    <span className="shrink-0 mt-0.5 text-sm">{isContradictory ? '🚨' : '⚠️'}</span>
+                            </div>
+
+                            {/* --- Middle: AI Verdict (restrained color - left accent only) --- */}
+                            <div className={`mx-5 mb-4 px-4 py-3 border-l-[3px] ${cfg.accent} ${cfg.accentBg} rounded-r-lg`}>
+                                <div className={`text-[13px] font-bold ${cfg.text} flex items-center gap-2`}>
+                                    <span className="text-sm">{cfg.emoji}</span> {cfg.label}
+                                </div>
+                                <p className="text-[13px] text-slate-600 leading-relaxed mt-1.5 ml-5">"{coreSummary}"</p>
+                                <p className="text-[12px] text-slate-400 mt-1.5 ml-5">✓ 薪资匹配 · ✓ 学历达标 · ⚠ 到岗时间需确认</p>
+                            </div>
+
+                            {/* --- Divider --- */}
+                            {followUpQuestions.length > 0 && <div className="border-t border-slate-100 mx-5"></div>}
+
+                            {/* --- Bottom: Follow-up Questions --- */}
+                            {followUpQuestions.length > 0 && (
+                                <div className="px-6 py-4">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <MessageSquare size={14} className="text-slate-400" />
+                                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">面试时建议重点追问</span>
+                                        <span className="text-[11px] font-medium px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-full">
+                                            {followUpQuestions.length} 项
+                                        </span>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {followUpQuestions.map((q, idx) => {
+                                            const isContradictory = q.signalType === 'CONTRADICTORY';
+                                            return (
+                                                <div key={q.id} className="flex items-start gap-3">
+                                                    <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5 ${isContradictory ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
+                                                        }`}>{idx + 1}</span>
                                                     <div className="flex-1 min-w-0">
-                                                        <span className={`text-sm font-bold ${isContradictory ? 'text-rose-700' : 'text-slate-800'}`}>{q.observation}</span>
-                                                        {q.confidence && (
-                                                            <span className={`ml-2 inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded border ${q.confidence === 'High' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                                q.confidence === 'Mid' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                                    'bg-rose-50 text-rose-700 border-rose-200'
-                                                                }`}>{q.confidence}</span>
+                                                        <p className={`text-[13px] font-bold leading-snug mb-1.5 ${isContradictory ? 'text-rose-700' : 'text-slate-800'}`}>{q.observation}</p>
+                                                        <div className="flex items-start gap-1.5 rounded-lg bg-slate-50 p-3 border border-slate-100">
+                                                            <MessageSquare size={12} className="text-indigo-400 shrink-0 mt-0.5" />
+                                                            <p className="text-[13px] text-slate-700 leading-relaxed">{q.nextQuestion}</p>
+                                                        </div>
+                                                        {q.relatedSectionId && (
+                                                            <button onClick={() => openEvidenceFor(q.relatedSectionId!)}
+                                                                className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-[12px] font-bold text-slate-500 hover:text-indigo-700 rounded-md transition-all">
+                                                                <Play size={9} fill="currentColor" /> 听 AI 初面录音
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </div>
-                                                {/* Gap */}
-                                                {q.gap && <p className="text-xs text-slate-500 ml-6 mb-2">缺口：{q.gap}</p>}
-                                                {/* Next Question */}
-                                                <div className="ml-6 flex items-start gap-2 mb-3 rounded-lg bg-indigo-50/50 p-3 border border-indigo-100/60">
-                                                    <MessageSquare size={14} className="text-indigo-400 shrink-0 mt-0.5" />
-                                                    <div>
-                                                        <span className="font-bold text-indigo-700 text-xs block mb-0.5">追问建议</span>
-                                                        <p className="text-sm text-slate-700 leading-relaxed">{q.nextQuestion}</p>
-                                                    </div>
-                                                </div>
-                                                {/* Evidence link → opens right panel */}
-                                                {q.relatedSectionId && (
-                                                    <button onClick={() => openEvidenceFor(q.relatedSectionId!)}
-                                                        className="ml-6 flex items-center gap-1.5 text-xs font-medium text-indigo-500 hover:text-indigo-700 transition-colors">
-                                                        <Mic2 size={12} /> 查看证据 →
-                                                    </button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
-                        {/* ===== MODULE 4: Annotated Resume (click highlights to open evidence) ===== */}
-                        {resumeSections.filter(s => s.type !== 'header').map((s) => {
-                            const isSectionActive = activeSectionId && (activeSectionId === s.id || activeSectionId.startsWith(s.id));
-                            return (
-                                <div key={s.id} id={`resume-section-${s.id}`}
-                                    className={`group rounded-xl p-5 transition-all duration-300 border ${isSectionActive ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' : 'bg-white/80 border-slate-100 hover:border-slate-200'}`}>
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                        {s.type === 'work' && <><Briefcase size={14} /> 工作经历</>}
-                                        {s.type === 'project' && <><Briefcase size={14} /> 项目经验</>}
-                                        {s.type === 'education' && <><Briefcase size={14} /> 教育背景</>}
-                                    </h3>
-                                    {(s.type === 'work' || s.type === 'project') && (
-                                        <div>
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h4 className="text-[15px] font-bold text-slate-900">{s.content.company || s.content.name}</h4>
-                                                <span className="text-[13px] font-medium text-slate-500 font-mono bg-slate-50 px-2 py-0.5 rounded">{s.content.time}</span>
+                        {/* ===== Annotated Resume (merged white container) ===== */}
+                        <div className="bg-white rounded-xl border border-slate-200/80 divide-y divide-slate-100">
+                            {resumeSections.filter(s => s.type !== 'header').map((s) => {
+                                const isSectionActive = activeSectionId && (activeSectionId === s.id || activeSectionId.startsWith(s.id));
+                                return (
+                                    <div key={s.id} id={`resume-section-${s.id}`}
+                                        className={`p-5 transition-all duration-300 ${isSectionActive ? 'bg-indigo-50/30' : ''}`}>
+                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            {s.type === 'work' && <><Briefcase size={14} /> 工作经历</>}
+                                            {s.type === 'project' && <><Briefcase size={14} /> 项目经验</>}
+                                            {s.type === 'education' && <><Briefcase size={14} /> 教育背景</>}
+                                        </h3>
+                                        {(s.type === 'work' || s.type === 'project') && (
+                                            <div>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h4 className="text-[15px] font-bold text-slate-900">{s.content.company || s.content.name}</h4>
+                                                    <span className="text-[12px] font-medium text-slate-400 font-mono">{s.content.time}</span>
+                                                </div>
+                                                <div className="text-[13px] text-slate-500 font-medium mb-3">{s.content.role}</div>
+                                                <ul className="space-y-2.5">
+                                                    {s.content.desc?.map((line: any) => {
+                                                        const linkedObs = observations.find(o => o.relatedSectionId === line.id);
+                                                        const isRisk = line.status === 'risk';
+                                                        const isLineActive = activeSectionId === line.id;
+                                                        return (
+                                                            <li key={line.id} id={`resume-section-${line.id}`}
+                                                                onClick={() => linkedObs ? openEvidenceFor(line.id) : undefined}
+                                                                className={`text-sm leading-relaxed text-slate-700 pl-3 border-l-[3px] transition-all ${isRisk ? 'border-l-amber-400 bg-amber-50/40 py-1.5 px-3 rounded-r-md' : 'border-l-transparent'
+                                                                    } ${isLineActive ? 'font-medium text-slate-900 !border-l-indigo-500 !bg-indigo-50/40' : ''} ${linkedObs ? 'cursor-pointer hover:bg-slate-50 rounded-r-md' : ''}`}>
+                                                                {line.text}
+                                                                {isRisk && <AlertTriangle size={12} className="inline ml-2 text-amber-500" />}
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
                                             </div>
-                                            <div className="text-[13px] text-indigo-600 font-bold mb-3">{s.content.role}</div>
-                                            <ul className="space-y-3">
-                                                {s.content.desc?.map((line: any) => {
-                                                    const linkedObs = observations.find(o => o.relatedSectionId === line.id);
-                                                    const isLineActive = activeSectionId === line.id;
-                                                    const highlightClass = line.status === 'verified' ? "bg-emerald-100/50 decoration-emerald-300 underline" : line.status === 'risk' ? "bg-amber-100/50 decoration-amber-300 underline" : "";
-                                                    return (
-                                                        <li key={line.id} id={`resume-section-${line.id}`}
-                                                            onClick={() => linkedObs ? openEvidenceFor(line.id) : undefined}
-                                                            className={`text-sm leading-relaxed text-slate-700 pl-4 relative before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:rounded-full before:bg-slate-300 transition-all ${isLineActive ? 'font-medium text-slate-900' : ''} ${linkedObs ? 'cursor-pointer hover:bg-slate-50 rounded-md py-1 -my-1' : ''}`}>
-                                                            <span className={`px-1 rounded -ml-1 transition-all ${highlightClass}`}>{line.text}</span>
-                                                            {line.status === 'verified' && <CheckCircle2 size={12} className="inline ml-2 text-emerald-500" />}
-                                                            {line.status === 'risk' && <AlertTriangle size={12} className="inline ml-2 text-amber-500" />}
-                                                        </li>
-                                                    );
-                                                })}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
-                {/* Right Column: Evidence Panel (collapsed by default) */}
+                {/* Right Column: Podcast-style Interview Player (collapsed by default) */}
                 {isEvidencePanelOpen && (
-                    <div className="w-[45%] h-full bg-white/40 backdrop-blur-sm flex flex-col border-l border-white/40 animate-in slide-in-from-right-8 duration-300">
-                        <div className="p-6 pb-2 shrink-0 z-10">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <img src={EILEEN_AVATAR} className="w-8 h-8 rounded-full border border-indigo-100" />
-                                    <h3 className="text-[13px] font-extrabold text-slate-800 uppercase tracking-widest">
-                                        艾琳的验证记录
-                                    </h3>
-                                </div>
-                                <button onClick={() => { setIsEvidencePanelOpen(false); setActiveSectionId(null); }}
-                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                    title="收起证据栏">
-                                    <XCircle size={18} />
+                    <div className="w-[28%] h-full bg-slate-50/90 backdrop-blur-sm flex flex-col border-l border-slate-200/60 animate-in slide-in-from-right-8 duration-300">
+                        {/* --- Sticky Header: Title + Close --- */}
+                        <div className="px-4 py-2.5 shrink-0 border-b border-slate-200/60 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <img src={EILEEN_AVATAR} className="w-5 h-5 rounded-full border border-indigo-100" />
+                                <h3 className="text-[12px] font-extrabold text-slate-600 uppercase tracking-widest">
+                                    AI 初面录音
+                                </h3>
+                                <span className="text-[12px] text-slate-400 font-medium">{formatTime(totalDuration)}</span>
+                            </div>
+                            <button onClick={() => { setIsEvidencePanelOpen(false); setActiveSectionId(null); setExpandedSegmentId(null); }}
+                                className="p-1 rounded-md hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors"
+                                title="收起">
+                                <XCircle size={16} />
+                            </button>
+                        </div>
+
+                        {/* --- Audio Player Bar --- */}
+                        <div className="px-4 py-3 shrink-0 border-b border-slate-200/40 bg-white/60">
+                            <div className="flex items-center gap-2.5">
+                                <button onClick={() => setIsPlaying(!isPlaying)}
+                                    className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors shrink-0">
+                                    {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
                                 </button>
+                                <div className="flex-1 min-w-0">
+                                    {/* Scrubber bar with colored segments */}
+                                    <div className="relative h-2 bg-slate-200 rounded-full cursor-pointer group"
+                                        onClick={(e) => {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            const pct = (e.clientX - rect.left) / rect.width;
+                                            seekTo(Math.round(pct * totalDuration));
+                                        }}>
+                                        {/* Colored segment markers on the bar */}
+                                        {interviewTimeline.filter(s => s.status !== 'neutral').map(seg => {
+                                            const left = (seg.startSec / totalDuration) * 100;
+                                            const width = ((seg.endSec - seg.startSec) / totalDuration) * 100;
+                                            const color = seg.status === 'risk' ? 'bg-rose-400' : seg.status === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
+                                            return (
+                                                <div key={seg.id} className={`absolute top-0 h-full ${color} rounded-full opacity-60`}
+                                                    style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }} />
+                                            );
+                                        })}
+                                        {/* Playback position indicator */}
+                                        <div className="absolute top-0 h-full bg-slate-600 rounded-full transition-all duration-150"
+                                            style={{ width: `${(playbackTime / totalDuration) * 100}%` }} />
+                                        <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-800 rounded-full shadow-sm border-2 border-white transition-all duration-150 group-hover:scale-125"
+                                            style={{ left: `${(playbackTime / totalDuration) * 100}%`, marginLeft: '-6px' }} />
+                                    </div>
+                                    {/* Time display */}
+                                    <div className="flex justify-between mt-1">
+                                        <span className="text-[11px] font-mono text-slate-400">{formatTime(playbackTime)}</span>
+                                        <span className="text-[11px] font-mono text-slate-400">{formatTime(totalDuration)}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 pb-20 scroll-smooth">
-                            {observations.map((obs) => {
-                                const isActive = activeSectionId && (activeSectionId === obs.relatedSectionId || activeSectionId.startsWith(obs.relatedSectionId || ''));
+
+                        {/* --- Chapter List (all collapsed by default) --- */}
+                        <div className="flex-1 overflow-y-auto scroll-smooth">
+                            {interviewTimeline.map((seg) => {
+                                const obs = seg.obsId ? observations.find(o => o.id === seg.obsId) : null;
+                                const isExpanded = expandedSegmentId === seg.id;
+                                const isActive = obs && activeSectionId && (activeSectionId === obs.relatedSectionId || activeSectionId.startsWith(obs.relatedSectionId || ''));
+                                const statusConfig: Record<string, { dot: string; border: string; bg: string; text: string; badge: string }> = {
+                                    risk: { dot: 'bg-rose-400', border: 'border-l-rose-400', bg: 'bg-rose-50/50', text: 'text-rose-700', badge: '🚨 矛盾' },
+                                    warning: { dot: 'bg-amber-400', border: 'border-l-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700', badge: '⚠️ 存疑' },
+                                    passed: { dot: 'bg-emerald-400', border: 'border-l-emerald-200', bg: 'bg-emerald-50/30', text: 'text-emerald-600', badge: '✅ 通过' },
+                                    neutral: { dot: 'bg-slate-300', border: 'border-l-slate-200', bg: 'bg-transparent', text: 'text-slate-500', badge: '' },
+                                };
+                                const sc = statusConfig[seg.status];
+
                                 return (
-                                    <div key={obs.id} id={`obs-card-${obs.id}`} onClick={() => handleObservationClick(obs.relatedSectionId)}
-                                        className={`transition-all duration-300 transform ${isActive ? 'scale-[1.02] ring-2 ring-indigo-400 ring-offset-2 z-10' : 'hover:scale-[1.01] opacity-60'}`}>
-                                        <RedPenCard data={obs} />
+                                    <div key={seg.id} id={obs ? `obs-card-${obs.id}` : `seg-${seg.id}`}
+                                        className={`border-l-[3px] ${sc.border} border-b border-slate-100 transition-all duration-200 ${isActive ? `${sc.bg} ring-1 ring-inset ring-indigo-200` : ''
+                                            }`}>
+                                        {/* Chapter header (always visible, always clickable) */}
+                                        <div className="flex items-center gap-2.5 px-3 py-3 cursor-pointer hover:bg-slate-100/60 transition-colors select-none"
+                                            onClick={() => toggleSegment(seg.id)}>
+                                            <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`}></div>
+                                            <button onClick={(e) => { e.stopPropagation(); seekTo(seg.startSec); }}
+                                                className="text-[12px] font-mono text-slate-400 hover:text-indigo-600 hover:underline shrink-0 transition-colors"
+                                                title="跳转播放">
+                                                {formatTime(seg.startSec)}
+                                            </button>
+                                            <span className={`text-[13px] font-semibold flex-1 truncate ${seg.status === 'neutral' ? 'text-slate-500' : sc.text}`}>
+                                                {seg.label}
+                                            </span>
+                                            {seg.status !== 'neutral' && (
+                                                <span className={`text-[11px] font-bold ${sc.text} shrink-0`}>{sc.badge}</span>
+                                            )}
+                                            <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </div>
+
+                                        {/* Expanded detail (obs detail for flagged, transcript for neutral) */}
+                                        {isExpanded && (
+                                            <div className={`px-4 pb-3 pt-1 ml-3 space-y-2.5 animate-in slide-in-from-top-2 duration-200 ${sc.bg} rounded-b-md`}>
+                                                {obs ? (
+                                                    <>
+                                                        <p className="text-[13px] text-slate-600 leading-relaxed">{obs.observation}</p>
+                                                        {obs.quote && (
+                                                            <div className="pl-3 border-l-2 border-slate-300/60">
+                                                                <p className="text-[12px] text-slate-500 italic leading-relaxed">"{obs.quote}"</p>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                ) : seg.transcript ? (
+                                                    <p className="text-[13px] text-slate-500 leading-relaxed">{seg.transcript}</p>
+                                                ) : null}
+                                                <button onClick={() => seekTo(seg.startSec)}
+                                                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 text-white rounded text-[12px] font-bold hover:bg-indigo-600 transition-colors w-fit">
+                                                    <Play size={10} fill="currentColor" /> 播放 {formatTime(seg.startSec)} - {formatTime(seg.endSec)}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -598,11 +711,11 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
             <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-indigo-200/30 via-rose-200/20 to-transparent blur-[120px] pointer-events-none z-0"></div>
 
             {/* 1. PERSISTENT HEADER (FIXED OVERFLOW & FLEX LAYOUT) */}
-            <div className="bg-white/70 backdrop-blur-md border-b border-white/50 px-6 pt-5 pb-0 shrink-0 z-30 sticky top-0 flex flex-col gap-5 shadow-sm">
-
+            {/* === SLIM NAV BAR (40px) === */}
+            <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 shrink-0 z-30 sticky top-0 flex items-center gap-1 h-11 shadow-sm">
                 {/* TOAST FEEDBACK OVERLAY */}
                 {decisionState === 'APPROVED' && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in z-50">
+                    <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in z-50">
                         <CheckCircle2 className="text-emerald-400" size={20} />
                         <div>
                             <div className="font-bold text-sm">已通过初筛</div>
@@ -611,7 +724,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                     </div>
                 )}
                 {decisionState === 'REJECTED' && (
-                    <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in z-50">
+                    <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in z-50">
                         <XCircle className="text-rose-400" size={20} />
                         <div>
                             <div className="font-bold text-sm">已标记淘汰</div>
@@ -620,114 +733,40 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                     </div>
                 )}
 
-                {/* Top Row: Info & Global Actions */}
-                <div className="flex items-center justify-between">
-                    {/* Left Side: Candidate Info */}
-                    <div className="flex items-center gap-5 flex-1 min-w-0 mr-4">
-                        <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="w-8 h-8 flex items-center justify-center hover:bg-white/50 rounded-lg text-slate-500 transition-colors shrink-0">
-                            <ChevronLeft size={22} />
-                        </button>
-                        <div className="flex items-center gap-4 min-w-0">
-                            <img src={avatar} alt={name} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-md shrink-0" />
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-3">
-                                    {/* UPDATED: text-lg instead of text-xl/2xl */}
-                                    <h2 className="text-lg font-bold text-slate-900 leading-tight truncate">{name}</h2>
-                                    {/* Status Badge - Updated text-xs */}
-                                    <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1.5 cursor-pointer hover:opacity-80 shrink-0 shadow-sm
-                                ${decisionState !== 'NONE' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                                            status === CandidateStatus.DELIVERED ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                status === CandidateStatus.EXCEPTION ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                                    'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>
-                                        {decisionState === 'APPROVED' ? <><CheckCircle2 size={12} /> 已通过</> :
-                                            decisionState === 'REJECTED' ? <><XCircle size={12} /> 已淘汰</> :
-                                                status === CandidateStatus.DELIVERED ? <><CheckCircle2 size={12} /> 已交付</> :
-                                                    status === CandidateStatus.TOUCHED ? <><Mail size={12} /> 已邀请</> :
-                                                        status === CandidateStatus.INTERVIEWING ? <><Phone size={12} /> 面试中</> :
-                                                            status === CandidateStatus.ANALYZING ? <><RefreshCw size={12} className="animate-spin" /> 分析中</> :
-                                                                status === CandidateStatus.PENDING_OUTREACH ? <><Clock size={12} /> 待触达</> :
-                                                                    <><AlertTriangle size={12} /> 异常</>}
-                                    </span>
-                                </div>
-                                <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 truncate font-medium">
-                                    {role} <span className="w-1 h-1 rounded-full bg-slate-300"></span> <span className="font-mono text-slate-400">ID: {candidateId}</span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                {/* Back button */}
+                <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-colors shrink-0">
+                    <ChevronLeft size={18} />
+                </button>
+                <span className="text-[13px] font-bold text-slate-700 mr-4 truncate">{name}</span>
 
-                    {/* Right Side: Actions - Decision Buttons */}
-                    <div className="flex items-center gap-2 shrink-0">
-                        {decisionState === 'NONE' && (
-                            <>
-                                <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-white/50 rounded-lg transition-colors" title="更多操作">
-                                    <MoreHorizontal size={20} />
-                                </button>
-                                <div className="h-6 w-px bg-slate-200 mx-2"></div>
-                                <button
-                                    onClick={() => handleDecision('REJECTED')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white/60 border border-rose-200 text-rose-600 text-[13px] font-bold rounded-lg hover:bg-rose-50 transition-all whitespace-nowrap"
-                                >
-                                    <XCircle size={14} /> 淘汰
-                                </button>
-                                <button
-                                    onClick={() => handleDecision('APPROVED')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-600 shadow-md shadow-slate-300 transition-all whitespace-nowrap"
-                                >
-                                    <UserCheck size={14} /> 通过
-                                </button>
-                            </>
-                        )}
-                        {decisionState === 'PROCESSING' && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg">
-                                <Loader2 size={14} className="animate-spin text-slate-500" />
-                                <span className="text-[13px] font-bold text-slate-500">处理中...</span>
-                            </div>
-                        )}
-                        {decisionState !== 'NONE' && decisionState !== 'PROCESSING' && (
-                            <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-[13px] font-bold rounded-lg hover:bg-slate-200 transition-all">
-                                返回工作台
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Bottom Row: UPDATED PILL TABS */}
-                <div className="flex justify-between items-center pb-3">
-                    <div className="flex p-1 bg-slate-100/60 rounded-full border border-white/40 backdrop-blur-sm">
-                        {[
-                            { id: 'ANALYSIS', label: '智能分析', icon: CheckCircle2, disabled: status !== CandidateStatus.DELIVERED },
-                            { id: 'TIMELINE', label: '任务进度', icon: Clock, disabled: false },
-                            { id: 'RESUME', label: '原始简历', icon: FileText, disabled: false },
-                            { id: 'RECORDING', label: '通话录音', icon: Mic2, disabled: [CandidateStatus.PENDING_OUTREACH, CandidateStatus.TOUCHED].includes(status) }
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
-                                disabled={tab.disabled as boolean}
-                                className={`px-4 py-1.5 text-[13px] font-bold rounded-full flex items-center gap-2 transition-all whitespace-nowrap relative
+                {/* Tabs inline */}
+                <div className="flex items-center gap-0.5 bg-slate-100/60 rounded-lg p-0.5">
+                    {[
+                        { id: 'ANALYSIS', label: '智能分析', icon: CheckCircle2, disabled: status !== CandidateStatus.DELIVERED },
+                        { id: 'TIMELINE', label: '任务进度', icon: Clock, disabled: false },
+                        { id: 'RESUME', label: '原始简历', icon: FileText, disabled: false }
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => !tab.disabled && setActiveTab(tab.id as any)}
+                            disabled={tab.disabled as boolean}
+                            className={`px-3 py-1 text-[12px] font-bold rounded-md flex items-center gap-1.5 transition-all whitespace-nowrap
                             ${activeTab === tab.id
-                                        ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5'
-                                        : tab.disabled
-                                            ? 'text-slate-300 cursor-not-allowed'
-                                            : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
-                            >
-                                <tab.icon size={14} />
-                                {tab.label}
-                                {tab.id === 'RECORDING' && activeTab !== 'RECORDING' && !tab.disabled && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute top-2 right-2"></span>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                    {/* Optional: Tab Contextual Action/Info could go here */}
+                                    ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5'
+                                    : tab.disabled
+                                        ? 'text-slate-300 cursor-not-allowed'
+                                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
+                        >
+                            <tab.icon size={12} />
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
             {/* 2. MAIN CONTENT AREA */}
             {activeTab === 'ANALYSIS' && <RenderAnalysisTab />}
             {activeTab === 'TIMELINE' && <RenderTimelineTab />}
-            {activeTab === 'RECORDING' && <RenderRecordingTab />}
             {activeTab === 'RESUME' && (
                 <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-white/40 relative z-10">
                     <div className="bg-white/80 backdrop-blur-md shadow-lg p-12 min-h-[800px] w-[800px]">
@@ -740,6 +779,39 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             <p className="text-slate-600 leading-8 text-sm">此处展示解析前的原始简历文件，方便 HR 核对细节...</p>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* === BOTTOM STICKY DECISION BAR === */}
+            {decisionState === 'NONE' && (
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end gap-3 shadow-[0_-2px_10px_rgba(0,0,0,0.04)]">
+                    <button
+                        onClick={() => handleDecision('REJECTED')}
+                        className="flex items-center gap-2 px-5 py-2 bg-white border border-rose-200 text-rose-600 text-[13px] font-bold rounded-lg hover:bg-rose-50 transition-all whitespace-nowrap"
+                    >
+                        <XCircle size={14} /> 淘汰
+                    </button>
+                    <button
+                        onClick={() => handleDecision('APPROVED')}
+                        className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-600 shadow-md shadow-slate-300/50 transition-all whitespace-nowrap"
+                    >
+                        <UserCheck size={14} /> 通过
+                    </button>
+                </div>
+            )}
+            {decisionState === 'PROCESSING' && (
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg">
+                        <Loader2 size={14} className="animate-spin text-slate-500" />
+                        <span className="text-[13px] font-bold text-slate-500">处理中...</span>
+                    </div>
+                </div>
+            )}
+            {decisionState !== 'NONE' && decisionState !== 'PROCESSING' && (
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end">
+                    <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-[13px] font-bold rounded-lg hover:bg-slate-200 transition-all">
+                        返回工作台
+                    </button>
                 </div>
             )}
 

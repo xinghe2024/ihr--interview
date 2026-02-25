@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ViewState, CandidateStatus } from '../../types';
+import { ViewState, CandidateStatus, EventCode } from '../../types';
 import { ChevronLeft, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, RefreshCw, Copy, Bell, MoreHorizontal, User, Smartphone, MapPin, Briefcase } from 'lucide-react';
 
 interface OrderTrackingViewProps {
@@ -9,7 +9,7 @@ interface OrderTrackingViewProps {
 
 // Helper to determine status based on ID for demo purposes
 const getMockStatus = (id: string | null): CandidateStatus => {
-    if (id === '2') return CandidateStatus.INVITED; // 王五
+    if (id === '2') return CandidateStatus.TOUCHED; // 王五
     if (id === '3') return CandidateStatus.ANALYZING; // 钱七
     if (id === '5') return CandidateStatus.EXCEPTION; // 李四
     return CandidateStatus.INTERVIEWING; // Default demo state
@@ -36,31 +36,39 @@ const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ candidateId, onNa
   // State Machine Configuration
   const steps = [
       { id: CandidateStatus.PENDING_OUTREACH, label: '待触达', icon: Clock },
-      { id: CandidateStatus.INVITED, label: '已邀请', icon: Mail },
+      { id: CandidateStatus.TOUCHED, label: '已触达', icon: Mail },
       { id: CandidateStatus.INTERVIEWING, label: '正在面试', icon: Phone },
       { id: CandidateStatus.ANALYZING, label: '分析中', icon: FileText },
       { id: CandidateStatus.DELIVERED, label: '已交付', icon: CheckCircle2 },
   ];
 
   const currentStepIndex = steps.findIndex(s => s.id === status);
-  // Exception handling: if EXCEPTION, we map it to INVITED index visually but show error
+  // Exception handling: if EXCEPTION, we map it to TOUCHED index visually but show error
   const visualStepIndex = status === CandidateStatus.EXCEPTION ? 1 : (currentStepIndex === -1 ? 2 : currentStepIndex);
 
   // Mock Timeline Data
   const timelineLogs = [
       { time: '14:00', title: '任务创建', detail: 'HR 发起自动初筛任务' },
       { time: '14:02', title: '简历解析完成', detail: '提取关键技能：Java, Spring Boot, K8s' },
-      { time: '14:05', title: '触达短信已送达', detail: '发送至 138****0000，包含专属通话链接' },
-      ...(status === CandidateStatus.INVITED ? [] : [
-        { time: '14:30', title: '候选人点击链接', detail: '设备检测通过 (iOS / Safari)' },
+      ...(status === CandidateStatus.TOUCHED ? [
+        { time: '14:30', title: 'H5落地页已打开', detail: '候选人打开H5落地页 (LANDING_OPENED)', eventCode: EventCode.LANDING_OPENED }
+      ] : []),
+      ...(status !== CandidateStatus.PENDING_OUTREACH && status !== CandidateStatus.TOUCHED ? [
+        { time: '14:30', title: 'H5落地页已打开', detail: '候选人打开H5落地页 (LANDING_OPENED)', eventCode: EventCode.LANDING_OPENED },
         { time: '14:31', title: '通话建立', detail: '双方已接入，开始对话' },
-      ]),
+      ] : []),
       ...(status === CandidateStatus.EXCEPTION ? [
           { time: '14:35', title: '通话异常中断', detail: '原因：候选人主动挂断', type: 'error' }
       ] : []),
       ...(status === CandidateStatus.ANALYZING ? [
-          { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒' },
-          { time: '14:46', title: '生成分析报告中', detail: '正在进行语音转写与意图识别...' }
+          { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒 (CALL_ENDED)', eventCode: EventCode.CALL_ENDED },
+          { time: '14:46', title: '分析开始', detail: '正在进行语音转写与意图识别... (ANALYSIS_STARTED)', eventCode: EventCode.ANALYSIS_STARTED }
+      ] : []),
+      ...(status === CandidateStatus.DELIVERED ? [
+          { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒 (CALL_ENDED)', eventCode: EventCode.CALL_ENDED },
+          { time: '14:46', title: '分析开始', detail: '正在进行语音转写与意图识别... (ANALYSIS_STARTED)', eventCode: EventCode.ANALYSIS_STARTED },
+          { time: '14:48', title: '报告就绪', detail: 'AI分析报告已生成 (REPORT_READY)', eventCode: EventCode.REPORT_READY },
+          { time: '14:49', title: '报告交付', detail: '报告已交付，证据可播放 (REPORT_DELIVERED)', eventCode: EventCode.REPORT_DELIVERED }
       ] : [])
   ];
 
@@ -122,10 +130,10 @@ const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ candidateId, onNa
                               <span className="font-bold text-sm">异常：用户未接听</span>
                           </div>
                       )}
-                      {status === CandidateStatus.INVITED && (
+                      {status === CandidateStatus.TOUCHED && (
                           <div className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 flex items-center gap-2">
                               <Mail size={18} />
-                              <span className="font-bold text-sm">已邀请 (等待接入)</span>
+                              <span className="font-bold text-sm">已触达 (等待接入)</span>
                           </div>
                       )}
                       {status === CandidateStatus.ANALYZING && (
@@ -190,7 +198,7 @@ const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ candidateId, onNa
                   {/* Manual Intervention Actions - Updated to text-[13px] */}
                   {status !== CandidateStatus.DELIVERED && (
                     <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end gap-3">
-                        {status === CandidateStatus.INVITED && (
+                        {status === CandidateStatus.TOUCHED && (
                             <>
                                 <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                                     <Copy size={16} /> 复制邀请链接

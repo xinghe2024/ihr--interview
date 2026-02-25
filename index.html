@@ -60,12 +60,23 @@
         }
     </script>
     <style>
-        body {
+        html, body {
             margin: 0;
             padding: 0;
-            background-color: #f0f4f8;
+            height: 100%;
             overflow: hidden;
+        }
+        
+        body {
+            background-color: #f0f4f8;
             color: #0f172a;
+        }
+        
+        #root {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         /* 1. Film Grain - Tactile Texture */

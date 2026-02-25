@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ViewState, CandidateStatus, Observation, ResumeSection } from '../../types';
-import { ChevronLeft, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2 } from 'lucide-react';
+import { ChevronLeft, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2 } from 'lucide-react';
 import RedPenCard from '../RedPenCard';
 
 interface OrderDetailViewProps {
@@ -66,10 +66,10 @@ const getMockCandidateContext = (id: string | null) => {
             role = '测试专家';
             avatar = AVATARS['3'];
             break;
-        case '4': // 张三 - Delivered
+        case '4': // 刘启迪 - Delivered
             status = CandidateStatus.DELIVERED;
-            name = '张三';
-            role = '高级前端工程师';
+            name = '刘启迪';
+            role = 'AI平台开发工程师';
             avatar = AVATARS['4'];
             break;
         case '5': // 李四 - Exception
@@ -165,42 +165,144 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
   // Mock Resume Data
   const observations: Observation[] = [
     {
-      id: 'o1', category: '技术深度验证', title: 'React Fiber 架构理解',
-      observation: '候选人对 Scheduler 调度机制描述准确，能清晰解释时间切片原理。',
-      quote: '...Fiber 其实就是把递归改成了链表遍历，利用 requestIdleCallback 做时间切片...',
-      evidenceTime: '04:15 - 05:30', signalType: 'CONFIDENT', relatedSectionId: 'work_1'
+      id: 'o1', category: '技术深度验证', title: 'Kubernetes与Volcano调度理解',
+      observation: '候选人对Volcano调度引擎工作原理描述准确，能清晰解释异构资源调度策略。',
+      quote: 'Volcano是专门为AI/大数据场景设计的调度器，支持gang scheduling和queue管理，我们用它实现了GPU资源的统一纳管。',
+      evidenceTime: '04:15 - 05:30', signalType: 'CONFIDENT', relatedSectionId: 'project_1'
     },
     {
-      id: 'o2', category: '离职动机核实', title: '关于离职原因的陈述',
-      observation: '提及团队变动时语速变慢，且与简历上的时间线（空窗期）存在逻辑断层。',
-      quote: '呃...主要是当时...那个业务线调整了嘛，然后...我们也换了 Leader...',
-      evidenceTime: '12:10 - 13:45', signalType: 'HESITANT', gap: '表达流利度下降，未正面回答裁员比例问题。', nextQuestion: '建议背景调查时重点核实该段时间的社保缴纳记录。', relatedSectionId: 'work_1_reason'
+      id: 'o2', category: '技术深度验证', title: '大模型分布式部署经验',
+      observation: '对DeepSeek 671B模型的分布式部署细节描述具体，提及基于Ray实现多机多卡推理。',
+      quote: 'DeepSeek 671B这么大的模型，单机肯定装不下。我们基于Ray做了分布式推理，通过tensor并行和pipeline并行结合。',
+      evidenceTime: '06:20 - 07:45', signalType: 'CONFIDENT', relatedSectionId: 'w1_p4'
+    },
+    {
+      id: 'o3', category: '离职动机核实', title: '关于高创安邦离职原因',
+      observation: '提及公司业务调整时表达不够流畅，与简历时间线（仅工作1.5年）存在疑问。',
+      quote: '嗯...主要是当时公司业务方向有些调整，然后我觉得...技术栈可能不太匹配我的发展方向。',
+      evidenceTime: '12:10 - 13:15', signalType: 'HESITANT', gap: '未正面说明是否涉及裁员或团队解散。', nextQuestion: '建议背景调查时核实该段时间的离职原因，是否为公司主动裁员。', relatedSectionId: 'work_2_reason'
+    },
+    {
+      id: 'o4', category: '项目经验核实', title: '雪亮工程数据处理规模',
+      observation: '提到日均处理20TB数据，但对数据处理链路和性能优化细节描述较为模糊。',
+      quote: '日均20TB...主要是通过Spark做批处理，然后...具体的调优我们有专门的团队负责。',
+      evidenceTime: '08:30 - 09:20', signalType: 'VAGUE', gap: '对核心技术细节描述不够深入，可能并非亲自负责性能调优。', nextQuestion: '建议追问Spark调优具体措施，如数据倾斜处理、内存管理等。', relatedSectionId: 'project_2_scale'
+    },
+    {
+      id: 'o5', category: '通用素质评估', title: '工作稳定性',
+      observation: '过去3份工作平均时长约1.5年，频繁跳槽可能影响稳定性。',
+      quote: '我觉得每个阶段都有不同的成长机会，所以会根据自己的职业规划做调整。',
+      evidenceTime: '14:05 - 14:50', signalType: 'HESITANT', gap: '未明确说明每次跳槽的具体原因和未来职业规划。', nextQuestion: '建议追问未来3-5年职业规划，以及对稳定性的看法。', relatedSectionId: 'work_stability',
+      competencyDimension: 'stability', competencyRating: 'concern', competencyLabel: '频繁跳槽'
+    },
+    {
+      id: 'o6', category: '技术广度评估', title: '全栈技术能力',
+      observation: '候选人展现出从大数据到AI平台、从边缘计算到云原生的广泛技术栈，学习能力较强。',
+      quote: '我之前做过工业物联网的实时计算，后来转到大数据平台，现在做AI云原生，都是围绕数据和计算这条线。',
+      evidenceTime: '10:15 - 11:00', signalType: 'CONFIDENT', relatedSectionId: 'work_1',
+      competencyDimension: 'learning', competencyRating: 'excellent', competencyLabel: '学习力强'
+    },
+    {
+      id: 'o7', category: '通用素质评估', title: '表达逻辑',
+      observation: '整体表达清晰，能够用通俗语言解释复杂技术概念，沟通能力较好。',
+      quote: '云原生AI平台其实就是把传统AI训练推理那套东西，用Kubernetes这种容器编排技术管起来，让资源调度更灵活。',
+      evidenceTime: '02:30 - 03:15', signalType: 'CONFIDENT', relatedSectionId: 'header',
+      competencyDimension: 'communication', competencyRating: 'excellent', competencyLabel: '流畅清晰'
+    },
+    {
+      id: 'o8', category: '基本信息核实', title: '薪资期望合理性',
+      observation: '期望29-35K，结合5年经验和技术深度，处于合理区间。候选人对薪资表述自信且有依据。',
+      quote: '我目前的薪资基数加上这几年的技术积累，29-35K这个范围是比较合理的。',
+      evidenceTime: '15:20 - 15:45', signalType: 'CONFIDENT', relatedSectionId: 'header',
+      competencyDimension: 'motivation', competencyRating: 'fair', competencyLabel: '动机模糊'
+    },
+    {
+      id: 'o9', category: '通用素质评估', title: '逻辑思维能力',
+      observation: '回答问题时整体逻辑清晰，但在描述雪亮工程技术细节时出现模糊，可能对部分技术环节理解不够深入。',
+      quote: '我们主要负责数据平台建设...具体的Spark调优是团队一起做的，我主要负责整体架构设计。',
+      evidenceTime: '08:45 - 09:30', signalType: 'VAGUE', gap: '对自己负责的具体模块边界描述不够清晰。', relatedSectionId: 'project_2',
+      competencyDimension: 'logic', competencyRating: 'good', competencyLabel: '基本自洽'
+    },
+    {
+      id: 'o10', category: '通用素质评估', title: '简历真实性评估',
+      observation: 'Kubernetes、Volcano等核心技能点经过验证真实可信，但雪亮工程的数据规模和个人职责细节待进一步核实。',
+      quote: '日均20TB数据...我们团队大概十几个人，我主要负责平台侧的开发和管理。',
+      evidenceTime: '08:30 - 09:20', signalType: 'CONFIDENT', gap: '项目规模数据待背调核实。', relatedSectionId: 'project_2',
+      competencyDimension: 'integrity', competencyRating: 'good', competencyLabel: '基本可信'
     }
   ];
 
+  // 核心发现总结
+  const coreSummary = "候选人技术广度较好，从大数据到AI云原生转型清晰。Kubernetes/Volcano等核心技能已验证。但工作稳定性需关注（3份工作平均1.5年），建议二面重点追问离职动机和未来规划。";
+
   const resumeSections: ResumeSection[] = [
-      { id: 'header', type: 'header', content: { name: name, role: role, contact: '138-0000-0000 · email@example.com', loc: '北京 · 望京' } },
-      { id: 'edu', type: 'education', content: { school: '北京邮电大学', degree: '计算机科学与技术 · 本科', time: '2015 - 2019' } },
-      { id: 'work_1', type: 'work', verificationStatus: 'warning', content: { 
-          company: '北京字节跳动科技有限公司', role: '资深前端开发工程师', time: '2021.03 - 至今',
+      { id: 'header', type: 'header', content: { name: '刘启迪', role: '算力平台开发工程师', contact: '13898941437 · Lqd54766209@163.com', loc: '北京 · 期望薪资29-35K · 一个月内到岗' } },
+      { id: 'edu', type: 'education', content: { school: '内蒙古科技大学', degree: '软件工程 · 本科', time: '2016-08 ~ 2020-07' } },
+      { id: 'work_1', type: 'work', verificationStatus: 'verified', content: {
+          company: '北京亚信数据有限公司', role: 'AI平台开发工程师', time: '2023-07 ~ 至今',
           desc: [
-              { text: '负责核心业务中台建设，支撑日均千万级 PV 访问。', id: 'w1_p1', status: 'verified' },
-              { text: '主导 React 16 到 18 的架构升级，First Contentful Paint (FCP) 提升 40%。', id: 'w1_p2', status: 'verified' },
-              { text: '离职原因：寻求更大的技术挑战及业务发展空间。', id: 'work_1_reason', status: 'risk' } 
+              { text: '负责深度学习平台的推理服务核心模块设计与开发。', id: 'w1_p1', status: 'verified' },
+              { text: '基于CloneSet完成单机多卡推理功能，实现高可用、弹性扩缩容、服务鉴权、灰度发布等配套功能。', id: 'w1_p2', status: 'verified' },
+              { text: '设计并开发基于Ray的分布式推理功能，实现大模型的多机多卡分布式部署。', id: 'w1_p3', status: 'verified' },
+              { text: '推理模块支持Nvidia及国产显卡上Llama系列、DeepSeek 671B等大模型的分布式部署。', id: 'w1_p4', status: 'verified' }
           ]
       }},
-      { id: 'project_1', type: 'project', verificationStatus: 'neutral', content: {
-          name: '企业级 CRM 微前端重构', role: '前端负责人',
-          desc: [{ text: '基于 qiankun 构建微前端基座，实现巨石应用拆解。', id: 'p1_d1', status: 'neutral' }]
+      { id: 'work_2', type: 'work', verificationStatus: 'warning', content: {
+          company: '高创安邦(北京)技术有限公司', role: '数据平台开发工程师', time: '2021-12 ~ 2023-07',
+          desc: [
+              { text: '担任研发经理，参与东莞雪亮工程二期信创国产化适配调研及落地。', id: 'w2_p1', status: 'verified' },
+              { text: '负责技术管理及核心代码开发，把控研发规范及进度。', id: 'w2_p2', status: 'verified' },
+              { text: '联合数据治理人员设计数据流转规范并实施，提升数据入平台效率及数据质量。', id: 'w2_p3', status: 'verified' },
+              { text: '离职原因：业务方向调整，寻求更符合个人技术发展的方向。', id: 'work_2_reason', status: 'risk' }
+          ]
       }},
-      { id: 'skills', type: 'skills', content: { tags: ['React', 'TypeScript', 'Node.js', 'K8s'] }}
+      { id: 'work_3', type: 'work', verificationStatus: 'neutral', content: {
+          company: '北京科技大学设计研究院有限公司', role: '平台开发工程师', time: '2020-08 ~ 2021-12',
+          desc: [
+              { text: '担任核心开发工程师，负责设备状态实时监测系统的数据采集模块与实时计算引擎设计。', id: 'w3_p1', status: 'neutral' },
+              { text: '实现多协议设备标准化接入与数据清洗逻辑。', id: 'w3_p2', status: 'neutral' },
+              { text: '参与Flink流处理流程优化，提升系统处理效率与稳定性。', id: 'w3_p3', status: 'neutral' }
+          ]
+      }},
+      { id: 'project_1', type: 'project', verificationStatus: 'verified', content: {
+          name: '深度学习平台', role: '核心开发工程师', time: '2023-10 ~ 至今',
+          desc: [
+              { text: '算力平台为AI开发者及算力运营方构建高效协同的技术生态，提供从数据集管理、模型全生命周期管控到资源调度的一站式服务。', id: 'p1_d1', status: 'verified' },
+              { text: '支持vLLM/Triton Serve/Onnx等推理框架及DeepSpeed/PyTorch分布式训练任务。', id: 'p1_d2', status: 'verified' },
+              { text: '内置Llama/DeepSeek/Qwen等开源大模型实现性能优化。', id: 'p1_d3', status: 'verified' },
+              { text: '通过Volcano调度引擎实现异构资源的高效分配，实现算力开发到运营的一体化平台。', id: 'project_1_responsibility_4', status: 'verified' }
+          ]
+      }},
+      { id: 'project_2', type: 'project', verificationStatus: 'warning', content: {
+          name: '东莞雪亮工程二期-综治应用数据中台', role: '研发经理', time: '2021-12 ~ 2023-05',
+          desc: [
+              { text: '基于雪亮工程视图数据和各委办局业务数据，构建人、地、事、物等基础资源库及特殊人员、重点事件等专题库。', id: 'p2_d1', status: 'verified' },
+              { text: '日均处理超20TB数据，获评广东省数字政府信创优秀案例。', id: 'project_2_scale', status: 'risk' },
+              { text: '基于中标麒麟国产操作系统，采用SpringBoot微服务架构，集成Hadoop、Hive、Spark、DataX等组件。', id: 'p2_d3', status: 'verified' },
+              { text: '通过东方通中间件实现前后端国产化部署，适配达梦/人大金仓国产数据库。', id: 'p2_d4', status: 'verified' }
+          ]
+      }},
+      { id: 'project_3', type: 'project', verificationStatus: 'neutral', content: {
+          name: '设备状态实时监测系统', role: '核心开发工程师', time: '2021-02 ~ 2021-11',
+          desc: [
+              { text: '工业设备状态实时监测系统支持PLC、传感器等多类型设备接入，集成Modbus/OPC UA等工业协议实现数据采集与预处理。', id: 'p3_d1', status: 'neutral' },
+              { text: '实时计算基于Flink(RocksDB状态后端)与Drools规则引擎。', id: 'p3_d2', status: 'neutral' },
+              { text: '存储层使用InfluxDB(时序数据)+MySQL(业务数据)。', id: 'p3_d3', status: 'neutral' },
+              { text: '可视化通过Three.js实现数字孪生，结合React+Spring Boot构建前后端分离平台。', id: 'p3_d4', status: 'neutral' }
+          ]
+      }},
+      { id: 'skills', type: 'skills', content: { tags: ['Kubernetes', 'Docker', 'Volcano', 'Golang', 'Java', 'Python', 'Hadoop', 'Spark', 'Flink', 'vLLM', 'DeepSeek', 'Llama', 'MySQL', 'Redis', 'Kafka', 'Prometheus'] }}
   ];
 
   const transcript = [
-      { speaker: 'AI', text: '您好，这里是字节跳动招聘组的 AI 助理艾琳。请问现在方便大概花 10 分钟聊聊吗？', time: '00:05' },
-      { speaker: 'Candidate', text: '嗯，方便的，您请说。', time: '00:12' },
-      { speaker: 'AI', text: '好的。我看到您简历里提到了 React 18 的升级经历。能具体讲讲在处理并发更新时，遇到了哪些棘手的问题吗？', time: '00:18' },
-      { speaker: 'Candidate', text: '呃...主要是当时...那个业务线调整了嘛，然后...我们也换了 Leader... 其实技术上主要是调度器那块...', time: '00:35', highlight: 'risk' },
+      { speaker: 'AI', text: '您好刘启迪，这里是 iHR 智能招聘助理艾琳。请问现在方便大概花 15 分钟聊聊算力平台开发工程师这个岗位吗？', time: '00:05' },
+      { speaker: 'Candidate', text: '您好，方便的，可以聊。', time: '00:12' },
+      { speaker: 'AI', text: '好的。我看到您简历里提到了深度学习平台的推理服务开发，还支持DeepSeek 671B这种超大模型。能具体讲讲您是如何实现分布式推理的吗？', time: '00:18' },
+      { speaker: 'Candidate', text: 'DeepSeek 671B这么大的模型，单机肯定装不下。我们基于Ray做了分布式推理，通过tensor并行和pipeline并行结合...', time: '00:35' },
+      { speaker: 'AI', text: '听起来很有挑战性。那在高创安邦那段经历，您提到了日均处理20TB数据，能详细说说技术架构和您负责的部分吗？', time: '06:50' },
+      { speaker: 'Candidate', text: '日均20TB...主要是通过Spark做批处理，然后...具体的调优我们有专门的团队负责。', time: '07:15', highlight: 'risk' },
+      { speaker: 'AI', text: '了解。那您从高创安邦离职的原因是什么呢？', time: '12:05' },
+      { speaker: 'Candidate', text: '嗯...主要是当时公司业务方向有些调整，然后我觉得...技术栈可能不太匹配我的发展方向。', time: '12:10', highlight: 'risk' },
   ];
 
   // Actions
@@ -217,87 +319,273 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
   // --- SUB-VIEWS ---
 
-  const RenderAnalysisTab = () => (
-      <div className="flex-1 flex overflow-hidden relative z-10">
-        {/* Resume Column - Changed bg-white to white/60 to let gradient bleed through */}
-        <div className="w-[55%] h-full overflow-y-auto scroll-smooth p-8 pb-32 border-r border-white/40 bg-white/60 backdrop-blur-md">
-            <div className="max-w-[700px] mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-                {resumeSections.filter(s => s.type !== 'header').map((s) => {
-                    const isSectionActive = activeSectionId && (activeSectionId === s.id || activeSectionId.startsWith(s.id));
-                    return (
-                        <div key={s.id} id={`resume-section-${s.id}`} onClick={() => handleSectionClick(s.id)}
-                            className={`group rounded-xl p-5 transition-all duration-300 border-2 cursor-pointer ${isSectionActive ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' : 'bg-transparent border-transparent hover:bg-white/50'}`}>
-                            
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                {s.type === 'work' && <><Briefcase size={14}/> 工作经历</>}
-                                {s.type === 'project' && <><Briefcase size={14}/> 项目经验</>}
-                                {s.type === 'education' && <><Briefcase size={14}/> 教育背景</>}
-                                {s.type === 'skills' && <><CheckCircle2 size={14}/> 技能清单</>}
-                            </h3>
+  const RenderAnalysisTab = () => {
+    const [expandedActionItems, setExpandedActionItems] = useState<Set<string>>(new Set());
+    const [expandedAnnotations, setExpandedAnnotations] = useState<Set<string>>(new Set());
 
-                            {(s.type === 'work' || s.type === 'project') && (
-                                <div>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className="text-[15px] font-bold text-slate-900">{s.content.company || s.content.name}</h4>
-                                        <span className="text-[13px] font-medium text-slate-500 font-mono bg-white/60 px-2 py-0.5 rounded">{s.content.time}</span>
-                                    </div>
-                                    <div className="text-[13px] text-indigo-600 font-bold mb-3">{s.content.role}</div>
-                                    <ul className="space-y-2">
-                                        {s.content.desc.map((line: any) => {
-                                            const isLineActive = activeSectionId === line.id;
-                                            const highlightClass = line.status === 'verified' ? "bg-emerald-100/50 decoration-emerald-300 underline" : line.status === 'risk' ? "bg-amber-100/50 decoration-amber-300 underline" : "";
-                                            return (
-                                                <li key={line.id} id={`resume-section-${line.id}`} onClick={(e) => { e.stopPropagation(); handleSectionClick(line.id); }}
-                                                    className={`text-sm leading-relaxed text-slate-700 pl-4 relative before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:rounded-full before:bg-slate-300 transition-all ${isLineActive ? 'font-medium text-slate-900' : ''}`}>
-                                                    <span className={`px-1 rounded -ml-1 transition-all ${highlightClass} ${isLineActive ? 'bg-opacity-100' : ''}`}>{line.text}</span>
-                                                    {line.status === 'verified' && <CheckCircle2 size={12} className="inline ml-2 text-emerald-500" />}
-                                                    {line.status === 'risk' && <AlertTriangle size={12} className="inline ml-2 text-amber-500" />}
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </div>
-                            )}
-                             {s.type === 'skills' && (
-                                <div className="flex flex-wrap gap-2">
-                                    {s.content.tags.map((tag: string) => (
-                                        <span key={tag} className="px-3 py-1.5 bg-white/60 text-slate-600 text-[13px] font-medium rounded-lg border border-slate-200">{tag}</span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
+    const toggleActionItem = (id: string) => {
+      setExpandedActionItems(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    };
+
+    const toggleAnnotation = (id: string) => {
+      setExpandedAnnotations(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    };
+
+    const getFollowUpQuestions = () => {
+      return observations
+        .filter(o => o.nextQuestion)
+        .map(o => ({
+          id: o.id,
+          question: o.nextQuestion,
+          source: o.category || '简历核验',
+          reason: o.gap || o.observation,
+          signalType: o.signalType,
+          quote: o.quote,
+          evidenceTime: o.evidenceTime,
+          priority: o.title.includes('离职') || o.title.includes('稳定') ? 1 : 2
+        }))
+        .sort((a, b) => a.priority - b.priority);
+    };
+
+    const getAIRecommendation = () => {
+      const contradictory = observations.filter(o => o.signalType === 'CONTRADICTORY').length;
+      const hesitant = observations.filter(o => o.signalType === 'HESITANT').length;
+      const followUps = observations.filter(o => o.nextQuestion).length;
+      if (contradictory > 0) {
+        return { type: 'FollowUp' as const };
+      }
+      if (hesitant > 1 || followUps > 3) {
+        return { type: 'FollowUp' as const };
+      }
+      return { type: 'Proceed' as const };
+    };
+
+    const followUpQuestions = getFollowUpQuestions();
+
+    return (
+      <div className="flex-1 overflow-y-auto scroll-smooth">
+        <div className="max-w-2xl mx-auto px-8 py-8 pb-32 space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+
+          {/* ═══ L1: 基础档案头 ═══ */}
+          <div className="pb-2 border-b border-slate-100">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-2">
+              <h1 className="text-2xl font-bold text-slate-900">
+                {resumeSections.find(s => s.type === 'header')?.content?.name || name}
+              </h1>
+              <span className="text-base text-slate-500 font-medium">
+                {resumeSections.find(s => s.type === 'header')?.content?.role}
+              </span>
             </div>
-        </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500">
+              <span>5年经验</span>
+              <span className="text-slate-300">·</span>
+              <span>29-35K</span>
+              <span className="text-slate-300">·</span>
+              <span>1个月内到岗</span>
+              {(() => {
+                const edu = resumeSections.find(s => s.type === 'education');
+                return edu ? (
+                  <>
+                    <span className="text-slate-300">·</span>
+                    <span>{edu.content?.school} · {edu.content?.degree}</span>
+                  </>
+                ) : null;
+              })()}
+              <span className="text-slate-300">·</span>
+              <span>📞 {resumeSections.find(s => s.type === 'header')?.content?.contact?.split('·')[0]?.trim()}</span>
+            </div>
+          </div>
 
-        {/* AI Insights Column - Transparent bg */}
-        <div className="w-[45%] h-full bg-transparent flex flex-col border-l border-white/40">
-             <div className="p-6 pb-2 shrink-0 z-10">
-                  <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                         <img src={EILEEN_AVATAR} className="w-8 h-8 rounded-full border border-indigo-100" />
-                         <h3 className="text-[13px] font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                             艾琳的验证记录
-                         </h3>
+          {/* ═══ L2: AI 核心判决 ═══ */}
+          {(() => {
+            const rec = getAIRecommendation();
+            const cfg = {
+              Proceed: { emoji: '🟢', label: '建议推进', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800' },
+              FollowUp: { emoji: '🟡', label: '建议补充追问', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800' },
+              Hold: { emoji: '🔴', label: '建议暂缓/淘汰', bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-800' },
+            }[rec.type];
+            return (
+              <div className={`rounded-xl border ${cfg.border} ${cfg.bg} px-5 py-4`}>
+                <div className={`text-base font-bold ${cfg.text} mb-2`}>
+                  {cfg.emoji} {cfg.label}
+                </div>
+                <p className="text-sm text-slate-700 leading-relaxed">{coreSummary}</p>
+              </div>
+            );
+          })()}
+
+          {/* ═══ L3: 建议关注与追问 ═══ */}
+          {followUpQuestions.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                <AlertTriangle size={13} className="text-amber-500" />
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                  建议关注与追问（{followUpQuestions.length} 项）
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {followUpQuestions.map((q) => {
+                  const isEvidenceOpen = expandedActionItems.has(q.id);
+                  const isContradictory = q.signalType === 'CONTRADICTORY';
+                  return (
+                    <div key={q.id} className="px-5 py-4">
+                      <div className={`text-xs font-medium mb-2 flex items-start gap-1.5 ${isContradictory ? 'text-rose-600' : 'text-amber-600'}`}>
+                        <span className="shrink-0 mt-0.5">{isContradictory ? '🚨' : '⚠️'}</span>
+                        <span>{q.reason}</span>
                       </div>
-                  </div>
-             </div>
-             <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-4 pb-20 scroll-smooth">
-                 {observations.map((obs) => {
-                     const isActive = activeSectionId && (activeSectionId === obs.relatedSectionId || activeSectionId.startsWith(obs.relatedSectionId || ''));
-                     return (
-                         <div key={obs.id} id={`obs-card-${obs.id}`} onClick={() => handleObservationClick(obs.relatedSectionId)}
-                             className={`transition-all duration-300 transform ${isActive ? 'scale-[1.02] ring-2 ring-indigo-400 ring-offset-2 z-10' : 'hover:scale-[1.01]'}`}>
-                             <RedPenCard data={obs} />
-                             {isActive && <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-6 h-0.5 bg-indigo-400 hidden lg:block"></div>}
-                         </div>
-                     );
-                 })}
-             </div>
+                      <div className="ml-5 flex items-start gap-2 mb-3">
+                        <span className="text-slate-300 shrink-0 mt-0.5">→</span>
+                        <p className="text-sm text-slate-800">
+                          <span className="font-bold text-indigo-600 mr-1">❓ 推荐追问：</span>
+                          {q.question}
+                        </p>
+                      </div>
+                      {(q.quote || q.evidenceTime) && (
+                        <div className="ml-5">
+                          <button
+                            onClick={() => toggleActionItem(q.id)}
+                            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            <span>查看原声证据</span>
+                            <ChevronDown size={11} className={`transition-transform ${isEvidenceOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isEvidenceOpen && (
+                            <div className="mt-2 bg-slate-50 rounded-lg p-3 border border-slate-100 space-y-2">
+                              {q.evidenceTime && (
+                                <button className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold hover:bg-indigo-100 transition-colors">
+                                  <Play size={9} fill="currentColor" />
+                                  听原声 {q.evidenceTime}
+                                </button>
+                              )}
+                              {q.quote && (
+                                <p className="text-[11px] text-slate-500 leading-relaxed">
+                                  <span className="font-bold text-slate-400">候选人：</span>
+                                  {q.quote}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ L4: 批注式简历正文 ═══ */}
+          <div className="space-y-4">
+            {(() => {
+              const order: Record<string, number> = { work: 0, project: 1, education: 2, skills: 3 };
+              return resumeSections
+                .filter(s => s.type !== 'header')
+                .sort((a, b) => (order[a.type] ?? 4) - (order[b.type] ?? 4))
+                .map((s) => {
+                  const isSectionActive = activeSectionId && (activeSectionId === s.id || activeSectionId.startsWith(s.id));
+                  return (
+                    <div
+                      key={s.id}
+                      id={`resume-section-${s.id}`}
+                      onClick={() => handleSectionClick(s.id)}
+                      className={`rounded-xl border-2 transition-all duration-300 bg-white p-5 cursor-pointer ${
+                        isSectionActive ? 'border-indigo-200 shadow-sm' : 'border-slate-100 hover:border-slate-200'
+                      }`}
+                    >
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                        {s.type === 'work' && '工作经历'}
+                        {s.type === 'project' && '项目经验'}
+                        {s.type === 'education' && '教育背景'}
+                        {s.type === 'skills' && '技能清单'}
+                      </div>
+
+                      {(s.type === 'work' || s.type === 'project') && (
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900">{s.content.company || s.content.name}</h3>
+                            <div className="text-sm text-indigo-600 font-medium mt-0.5">{s.content.role}</div>
+                          </div>
+                          <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded whitespace-nowrap ml-4">{s.content.time}</span>
+                        </div>
+                      )}
+
+                      {s.type === 'education' && (
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="text-base font-bold text-slate-900">{s.content?.school}</h3>
+                            <div className="text-sm text-slate-600 mt-0.5">{s.content?.degree}</div>
+                          </div>
+                          <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-0.5 rounded whitespace-nowrap ml-4">{s.content?.time}</span>
+                        </div>
+                      )}
+
+                      {(s.type === 'work' || s.type === 'project') && s.content.desc && (
+                        <ul className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                          {s.content.desc.map((line: any) => {
+                            const linkedObs = observations.find(o => o.relatedSectionId === line.id);
+                            const isAnnotationOpen = linkedObs ? expandedAnnotations.has(linkedObs.id) : false;
+                            return (
+                              <li key={line.id} id={`resume-section-${line.id}`}>
+                                <div className="flex items-start gap-2">
+                                  <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></span>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm leading-relaxed text-slate-700">{line.text}</span>
+                                    {linkedObs && (
+                                      <button
+                                        onClick={() => toggleAnnotation(linkedObs.id)}
+                                        className={`inline-flex items-center gap-0.5 ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded border align-middle transition-all ${
+                                          linkedObs.signalType === 'CONFIDENT'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                            : linkedObs.signalType === 'CONTRADICTORY'
+                                            ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                            : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                        }`}
+                                      >
+                                        {linkedObs.signalType === 'CONFIDENT' && '✅ 已验证'}
+                                        {linkedObs.signalType === 'HESITANT' && '⚠️ 存疑'}
+                                        {linkedObs.signalType === 'VAGUE' && '⚠️ 逻辑存疑'}
+                                        {linkedObs.signalType === 'CONTRADICTORY' && '🚨 矛盾点'}
+                                        <ChevronDown size={9} className={`transition-transform ${isAnnotationOpen ? 'rotate-180' : ''}`} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                {isAnnotationOpen && linkedObs && (
+                                  <div className="mt-2 ml-3.5">
+                                    <RedPenCard data={linkedObs} />
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+
+                      {s.type === 'skills' && (
+                        <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                          {s.content.tags.map((tag: string) => (
+                            <span key={tag} className="px-3 py-1 text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg">{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+            })()}
+          </div>
+
         </div>
       </div>
-  );
+    );
+  };
 
   const RenderTimelineTab = () => (
       <div className="flex-1 overflow-y-auto p-8 bg-transparent relative z-10">
@@ -419,7 +707,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                          </div>
                          <div className="flex-1">
                              <div className="flex items-center gap-2 mb-1">
-                                 <span className="text-xs font-bold text-slate-700">{t.speaker === 'AI' ? '招聘助理艾琳' : '张三'}</span>
+                                 <span className="text-xs font-bold text-slate-700">{t.speaker === 'AI' ? '招聘助理艾琳' : name}</span>
                                  <span className="text-[10px] text-slate-400 font-mono">{t.time}</span>
                              </div>
                              <p className={`text-sm leading-relaxed p-2 rounded-lg ${t.highlight === 'risk' ? 'bg-amber-50 text-slate-800 border border-amber-100' : 'text-slate-600 hover:bg-white/50'}`}>

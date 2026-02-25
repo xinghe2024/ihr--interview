@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState, CandidateStatus } from '../../types';
-import { Search, CheckCircle2, User, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, RefreshCw, Activity, Sparkles, UserCheck, Radio } from 'lucide-react';
+import { CheckCircle2, User, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, RefreshCw, Activity, Sparkles, UserCheck, Radio } from 'lucide-react';
 
 interface DashboardViewProps {
   onNavigate: (view: ViewState, id: string) => void;
@@ -26,37 +26,37 @@ const MOCK_CANDIDATES = [
     { 
         id: '1', name: '赵六', role: 'Java 专家', exp: '10年', 
         status: CandidateStatus.PENDING_OUTREACH, 
-        desc: '新简历入库，等待您批准', 
+        desc: '新简历入库，正在排队等待 AI 触达...', 
         avatar: AVATARS['1'] 
     },
     { 
         id: '2', name: '王五', role: 'Java 架构师', exp: '8年', 
         status: CandidateStatus.INTERVIEWING, 
-        desc: '通话中：我正在面试他', 
+        desc: 'AI 正在与候选人进行对话...', 
         avatar: AVATARS['2'] 
     },
     { 
         id: '3', name: '钱七', role: '测试专家', exp: '6年', 
         status: CandidateStatus.ANALYZING, 
-        desc: '通话结束，我正在写报告', 
+        desc: '通话结束，正在生成评估报告...', 
         avatar: AVATARS['3'] 
     },
     { 
         id: '4', name: '张三', role: '高级前端工程师', exp: '5年', 
         status: CandidateStatus.DELIVERED, 
-        desc: '已出报告，等待您决策', 
+        desc: '报告已生成，请查阅评估结果。', 
         avatar: AVATARS['4'] 
     },
     { 
         id: '5', name: '李四', role: '产品经理', exp: '3年', 
         status: CandidateStatus.EXCEPTION, 
-        desc: '异常：我没联系上他', 
+        desc: '呼叫中断或未接通，建议人工介入。', 
         avatar: AVATARS['5'] 
     },
     { 
         id: '6', name: '孙九', role: '算法工程师', exp: '4年', 
-        status: CandidateStatus.INVITED, 
-        desc: '短信已送达，等待他接入', 
+        status: CandidateStatus.TOUCHED, 
+        desc: '已发送邀请，等待候选人响应...', 
         avatar: AVATARS['6'] 
     },
 ];
@@ -90,7 +90,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
   const filteredList = MOCK_CANDIDATES.filter(c => {
       if (filter === 'ALL') return true;
       if (filter === 'PENDING') return c.status === CandidateStatus.PENDING_OUTREACH;
-      if (filter === 'ACTIVE') return [CandidateStatus.INVITED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status);
+      if (filter === 'ACTIVE') return [CandidateStatus.TOUCHED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status);
       if (filter === 'COMPLETED') return c.status === CandidateStatus.DELIVERED;
       if (filter === 'EXCEPTION') return c.status === CandidateStatus.EXCEPTION;
       return true;
@@ -198,7 +198,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
             <div className="grid grid-cols-4 gap-4 mb-8">
                 <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 relative overflow-hidden group hover:bg-white/60 hover:border-indigo-200 transition-all hover:shadow-glow">
                     <div className="flex justify-between items-start">
-                        <span className="text-sm font-bold text-slate-600 tracking-wide">待我呼叫</span>
+                        <span className="text-sm font-bold text-slate-600 tracking-wide">待触达</span>
                         <div className="p-1.5 bg-white/60 rounded-md text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors"><User size={20}/></div>
                     </div>
                     <div>
@@ -209,7 +209,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                 
                 <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 group hover:bg-white/60 hover:border-indigo-200 transition-all hover:shadow-glow">
                     <div className="flex justify-between items-start">
-                        <span className="text-sm font-bold text-slate-600 tracking-wide">我正在沟通</span>
+                        <span className="text-sm font-bold text-slate-600 tracking-wide">正在面试</span>
                         <div className="p-1.5 bg-indigo-50/60 rounded-md text-indigo-600"><Phone size={20}/></div>
                     </div>
                     <div>
@@ -220,7 +220,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
 
                 <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 group hover:bg-white/60 hover:border-emerald-200 transition-all hover:shadow-glow">
                     <div className="flex justify-between items-start">
-                        <span className="text-sm font-bold text-slate-600 tracking-wide">已出报告</span>
+                        <span className="text-sm font-bold text-slate-600 tracking-wide">已交付</span>
                         <div className="p-1.5 bg-emerald-50/60 rounded-md text-emerald-600"><CheckCircle2 size={20}/></div>
                     </div>
                     <div>
@@ -244,11 +244,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
             {/* 3. Main List Section - High Transparency & Modern Toolbar */}
             <div className="flex flex-col bg-white/40 backdrop-blur-xl rounded-3xl border border-white/40 shadow-glass overflow-hidden">
                 {/* Toolbar - Redesigned: Glassy & Unified */}
-                <div className="px-6 py-5 flex items-center justify-between sticky top-0 bg-white/40 backdrop-blur-md z-20 border-b border-white/20">
+                <div className="px-6 py-5 flex items-center sticky top-0 bg-white/40 backdrop-blur-md z-20 border-b border-white/20">
                     
                     {/* New Pill Tabs */}
                     <div className="flex items-center p-1 bg-slate-100/50 rounded-full border border-white/30 backdrop-blur-sm">
-                        {[{ id: 'ALL', label: '全部' }, { id: 'PENDING', label: '待呼叫' }, { id: 'ACTIVE', label: '执行中' }, { id: 'COMPLETED', label: '已完成' }, { id: 'EXCEPTION', label: '需关注' }].map((t) => {
+                        {[{ id: 'ALL', label: '全部' }, { id: 'PENDING', label: '待触达' }, { id: 'ACTIVE', label: '执行中' }, { id: 'COMPLETED', label: '已交付' }, { id: 'EXCEPTION', label: '需关注' }].map((t) => {
                             const isActive = filter === t.id;
                             return (
                                 <button key={t.id} onClick={() => setFilter(t.id as FilterType)}
@@ -261,15 +261,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                 </button>
                             );
                         })}
-                    </div>
-                    
-                    {/* Search - Floating Pill */}
-                    <div className="relative group">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                        <input 
-                            placeholder="搜索候选人..." 
-                            className="pl-9 pr-4 py-2 bg-white/60 border border-white/50 rounded-full text-sm font-medium outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 focus:border-indigo-200 w-64 transition-all placeholder:text-slate-400 shadow-inner" 
-                        />
                     </div>
                 </div>
 
@@ -293,11 +284,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                 </div>
                             </div>
                             <div className="col-span-2">
-                                {c.status === CandidateStatus.PENDING_OUTREACH && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100/60 text-slate-600 text-[13px] font-bold rounded-md whitespace-nowrap"><Clock size={14}/> 待呼叫</span>}
-                                {c.status === CandidateStatus.INVITED && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50/60 text-indigo-600 text-[13px] font-bold rounded-md whitespace-nowrap"><Mail size={14}/> 已邀请</span>}
+                                {c.status === CandidateStatus.PENDING_OUTREACH && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100/60 text-slate-600 text-[13px] font-bold rounded-md whitespace-nowrap"><Clock size={14}/> 待触达</span>}
+                                {c.status === CandidateStatus.TOUCHED && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50/60 text-indigo-600 text-[13px] font-bold rounded-md whitespace-nowrap"><Mail size={14}/> 已触达</span>}
                                 {c.status === CandidateStatus.INTERVIEWING && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50/60 text-indigo-600 text-[13px] font-bold rounded-md whitespace-nowrap animate-pulse"><Phone size={14}/> 正在面试</span>}
                                 {c.status === CandidateStatus.ANALYZING && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50/60 text-amber-600 text-[13px] font-bold rounded-md whitespace-nowrap"><RefreshCw size={14} className="animate-spin"/> 分析中</span>}
-                                {c.status === CandidateStatus.DELIVERED && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50/60 text-emerald-600 text-[13px] font-bold rounded-md whitespace-nowrap"><CheckCircle2 size={14}/> 初筛完成</span>}
+                                {c.status === CandidateStatus.DELIVERED && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50/60 text-emerald-600 text-[13px] font-bold rounded-md whitespace-nowrap"><CheckCircle2 size={14}/> 已交付</span>}
                                 {c.status === CandidateStatus.EXCEPTION && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50/60 text-rose-600 text-[13px] font-bold rounded-md whitespace-nowrap"><AlertTriangle size={14}/> 异常</span>}
                             </div>
                             <div className="col-span-5 pr-4 min-w-0">
@@ -309,7 +300,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                             <div className="col-span-2 text-right pr-2 flex justify-end">
                                 {c.status === CandidateStatus.PENDING_OUTREACH && <button className="text-[13px] font-bold text-slate-400 px-3 py-1.5">等待执行</button>}
                                 {c.status === CandidateStatus.DELIVERED && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.REPORT, c.id); }} className="px-4 py-2 bg-indigo-600 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap flex items-center gap-1"><UserCheck size={14} /> 决策</button>}
-                                {[CandidateStatus.INVITED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status) && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.ORDER_TRACKING, c.id); }} className="text-[13px] font-bold text-indigo-600 hover:bg-white/50 px-3 py-1.5 rounded-lg transition-colors">查看进度</button>}
+                                {[CandidateStatus.TOUCHED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status) && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.ORDER_TRACKING, c.id); }} className="text-[13px] font-bold text-indigo-600 hover:bg-white/50 px-3 py-1.5 rounded-lg transition-colors">查看进度</button>}
                                 {c.status === CandidateStatus.EXCEPTION && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.ORDER_TRACKING, c.id); }} className="px-4 py-2 border border-rose-200 text-rose-600 text-[13px] font-bold rounded-lg hover:bg-rose-50 transition-all bg-white/80">人工介入</button>}
                             </div>
                         </div>
