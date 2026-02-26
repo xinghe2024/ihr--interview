@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ViewState, CandidateStatus, Observation, ResumeSection } from '../../types';
-import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign } from 'lucide-react';
+import { ViewState, CandidateStatus, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../types';
+import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign, Search } from 'lucide-react';
 import RedPenCard from '../RedPenCard';
 
 interface OrderDetailViewProps {
@@ -126,7 +126,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const { status, name, role, logs, avatar } = useMemo(() => getMockCandidateContext(candidateId), [candidateId]);
 
     // Local state for Decision Logic
-    const [decisionState, setDecisionState] = useState<'NONE' | 'PROCESSING' | 'APPROVED' | 'REJECTED'>('NONE');
+    const [decisionState, setDecisionState] = useState<'NONE' | 'PROCESSING' | 'PROCEED' | 'FOLLOWUP' | 'HOLD'>('NONE');
 
     // Smart default tab logic
     const smartInitialTab = (defaultTab === 'ANALYSIS' && status !== CandidateStatus.DELIVERED) ? 'TIMELINE' : defaultTab;
@@ -147,12 +147,12 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const [playbackTime, setPlaybackTime] = useState(0);
     const totalDuration = 900; // 15 minutes in seconds
 
-    // DECISION HANDLER
-    const handleDecision = (type: 'APPROVED' | 'REJECTED') => {
+    // 3-WAY ROUTING DECISION HANDLER
+    const handleDecision = (type: 'PROCEED' | 'FOLLOWUP' | 'HOLD') => {
         setDecisionState('PROCESSING');
         setTimeout(() => {
             setDecisionState(type);
-        }, 1500);
+        }, 1000);
     };
 
     // Progress Bar logic
@@ -235,6 +235,28 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const coreSummary = '技术功底扎实，React 架构理解深入；但离职动机描述含糊，微前端项目规模细节存疑。建议二面重点追问上述两点。';
     const followUpQuestions = observations.filter(o => o.nextQuestion);
 
+    // KSQ Results & Baseline Coverage for report
+    const ksqResults: KSQItem[] = [
+        { id: 'ksq1', topic: 'React 项目经验深度', rubric: '能说出具体优化指标和数据', result: 'pass', evidence: '能说出 FCP 提升 40%，时间切片原理' },
+        { id: 'ksq2', topic: '微前端架构实操', rubric: '能描述接入的子应用数和分工', result: 'partial', evidence: '说“十几二十个”但给不了具体数' },
+        { id: 'ksq3', topic: '离职动机核实', rubric: '各段经历的离开原因清晰连贯', result: 'partial', evidence: '语速变慢，未正面回答裁员比例' },
+    ];
+    const ksqSectionMap: Record<string, string> = {
+        'ksq1': 'work_1',
+        'ksq2': 'p1_d1',
+        'ksq3': 'work_1_reason',
+    };
+    const baselineCoverage: BaselineCoverage[] = [
+        { label: '薪资范围匹配', status: 'pass' },
+        { label: '学历信息已核实', status: 'pass' },
+        { label: '到岗时间已确认', status: 'pass' },
+        { label: '表达流畅，逻辑清晰', status: 'pass' },
+        { label: '工作经历无明显空窗', status: 'pass' },
+        { label: '回答条理清晰', status: 'pass' },
+        { label: '求职动机已了解', status: 'pass' },
+        { label: '地域意向待确认', status: 'warning' },
+    ];
+
     // Format seconds to MM:SS
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -298,7 +320,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
             <div className="flex-1 flex overflow-hidden relative z-10">
                 {/* Left Column */}
                 <div className={`h-full overflow-y-auto scroll-smooth p-8 pb-32 bg-white/60 backdrop-blur-md transition-all duration-300 ${isEvidencePanelOpen ? 'w-[72%] border-r border-white/40' : 'w-full'}`}>
-                    <div className={`mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 ${isEvidencePanelOpen ? 'max-w-[700px]' : 'max-w-[800px]'}`}>
+                    <div className={`mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 ${isEvidencePanelOpen ? 'max-w-full px-2' : 'max-w-[960px]'}`}>
 
                         {/* ===== 候选人速览卡 (Merged: Basic Info + AI Verdict + Follow-ups) ===== */}
                         <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-sm">
@@ -328,47 +350,91 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                                 </div>
                             </div>
 
-                            {/* --- Middle: AI Verdict (restrained color - left accent only) --- */}
+                            {/* --- AI Verdict + Baseline Badge Bar --- */}
                             <div className={`mx-5 mb-4 px-4 py-3 border-l-[3px] ${cfg.accent} ${cfg.accentBg} rounded-r-lg`}>
                                 <div className={`text-[13px] font-bold ${cfg.text} flex items-center gap-2`}>
                                     <span className="text-sm">{cfg.emoji}</span> {cfg.label}
                                 </div>
                                 <p className="text-[13px] text-slate-600 leading-relaxed mt-1.5 ml-5">"{coreSummary}"</p>
-                                <p className="text-[12px] text-slate-400 mt-1.5 ml-5">✓ 薪资匹配 · ✓ 学历达标 · ⚠ 到岗时间需确认</p>
+                                <div className="mt-2.5 ml-5 flex flex-wrap gap-1.5">
+                                    {baselineCoverage.map((b, i) => (
+                                        <span key={i} className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full ${b.status === 'pass'
+                                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                            : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                            }`}>
+                                            {b.status === 'pass' ? '✓' : '⚠'} {b.label}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* --- Divider --- */}
-                            {followUpQuestions.length > 0 && <div className="border-t border-slate-100 mx-5"></div>}
+                            {/* --- Inner Card A: KSQ Results --- */}
+                            <div className="mx-5 mb-3 rounded-lg bg-slate-50/70 border border-slate-100 overflow-hidden">
+                                <div className="px-4 py-2.5 flex items-center gap-2 border-b border-slate-100/80">
+                                    <Search size={13} className="text-indigo-500" />
+                                    <span className="text-xs font-bold text-slate-700 tracking-wide">重点考察回答</span>
+                                    <span className="text-[11px] font-medium px-1.5 py-0.5 bg-white text-slate-400 rounded-full border border-slate-100">
+                                        {ksqResults.length} 项
+                                    </span>
+                                </div>
+                                <div className="px-4 py-3 space-y-2.5">
+                                    {ksqResults.map((ksq, idx) => {
+                                        const statusCfg = ksq.result === 'pass'
+                                            ? { color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-100', label: '达标' }
+                                            : ksq.result === 'fail'
+                                                ? { color: 'text-rose-700', bg: 'bg-rose-50 border-rose-100', label: '不达标' }
+                                                : { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-100', label: '存疑' };
+                                        const sectionId = ksqSectionMap[ksq.id];
+                                        return (
+                                            <div key={ksq.id} className="group flex items-start gap-2.5 py-1">
+                                                <span className="shrink-0 w-5 h-5 rounded-full bg-slate-200/80 text-slate-500 flex items-center justify-center text-[11px] font-bold mt-px">{idx + 1}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[13px] font-bold text-slate-800">{ksq.topic}</span>
+                                                        <span className={`text-[11px] font-bold ${statusCfg.color} ${statusCfg.bg} border px-1.5 py-0.5 rounded`}>{statusCfg.label}</span>
+                                                        {sectionId && (
+                                                            <button onClick={() => openEvidenceFor(sectionId)}
+                                                                className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-slate-500 opacity-0 group-hover:opacity-100 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all">
+                                                                <Play size={8} fill="currentColor" /> 访谈纪录
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    {ksq.evidence && <p className="text-[12px] text-slate-500 mt-0.5 leading-relaxed">→ {ksq.evidence}</p>}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
-                            {/* --- Bottom: Follow-up Questions --- */}
+                            {/* --- Inner Card B: Follow-up Questions --- */}
                             {followUpQuestions.length > 0 && (
-                                <div className="px-6 py-4">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <MessageSquare size={14} className="text-slate-400" />
-                                        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">面试时建议重点追问</span>
-                                        <span className="text-[11px] font-medium px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-full">
+                                <div className="mx-5 mb-4 rounded-lg bg-amber-50/40 border border-amber-100/60 overflow-hidden">
+                                    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-amber-100/60">
+                                        <MessageSquare size={13} className="text-amber-500" />
+                                        <span className="text-xs font-bold text-slate-700 tracking-wide">面试时建议重点追问</span>
+                                        <span className="text-[11px] font-medium px-1.5 py-0.5 bg-white text-slate-400 rounded-full border border-amber-100">
                                             {followUpQuestions.length} 项
                                         </span>
                                     </div>
-                                    <div className="space-y-4">
+                                    <div className="px-4 py-3 space-y-2.5">
                                         {followUpQuestions.map((q, idx) => {
                                             const isContradictory = q.signalType === 'CONTRADICTORY';
                                             return (
-                                                <div key={q.id} className="flex items-start gap-3">
-                                                    <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5 ${isContradictory ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
+                                                <div key={q.id} className="group flex items-start gap-2.5 py-1">
+                                                    <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-px ${isContradictory ? 'bg-rose-200/80 text-rose-600' : 'bg-slate-200/80 text-slate-500'
                                                         }`}>{idx + 1}</span>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className={`text-[13px] font-bold leading-snug mb-1.5 ${isContradictory ? 'text-rose-700' : 'text-slate-800'}`}>{q.observation}</p>
-                                                        <div className="flex items-start gap-1.5 rounded-lg bg-slate-50 p-3 border border-slate-100">
-                                                            <MessageSquare size={12} className="text-indigo-400 shrink-0 mt-0.5" />
-                                                            <p className="text-[13px] text-slate-700 leading-relaxed">{q.nextQuestion}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className={`text-[13px] font-bold leading-snug ${isContradictory ? 'text-rose-700' : 'text-slate-800'}`}>{q.observation}</p>
+                                                            {q.relatedSectionId && (
+                                                                <button onClick={() => openEvidenceFor(q.relatedSectionId!)}
+                                                                    className="ml-auto shrink-0 inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium text-slate-500 opacity-0 group-hover:opacity-100 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-all">
+                                                                    <Play size={8} fill="currentColor" /> 访谈纪录
+                                                                </button>
+                                                            )}
                                                         </div>
-                                                        {q.relatedSectionId && (
-                                                            <button onClick={() => openEvidenceFor(q.relatedSectionId!)}
-                                                                className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-[12px] font-bold text-slate-500 hover:text-indigo-700 rounded-md transition-all">
-                                                                <Play size={9} fill="currentColor" /> 听 AI 初面录音
-                                                            </button>
-                                                        )}
+                                                        <p className="text-[12px] text-slate-500 mt-0.5 leading-relaxed">→ {q.nextQuestion}</p>
                                                     </div>
                                                 </div>
                                             );
@@ -423,128 +489,130 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                 </div>
 
                 {/* Right Column: Podcast-style Interview Player (collapsed by default) */}
-                {isEvidencePanelOpen && (
-                    <div className="w-[28%] h-full bg-slate-50/90 backdrop-blur-sm flex flex-col border-l border-slate-200/60 animate-in slide-in-from-right-8 duration-300">
-                        {/* --- Sticky Header: Title + Close --- */}
-                        <div className="px-4 py-2.5 shrink-0 border-b border-slate-200/60 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <img src={EILEEN_AVATAR} className="w-5 h-5 rounded-full border border-indigo-100" />
-                                <h3 className="text-[12px] font-extrabold text-slate-600 uppercase tracking-widest">
-                                    AI 初面录音
-                                </h3>
-                                <span className="text-[12px] text-slate-400 font-medium">{formatTime(totalDuration)}</span>
-                            </div>
-                            <button onClick={() => { setIsEvidencePanelOpen(false); setActiveSectionId(null); setExpandedSegmentId(null); }}
-                                className="p-1 rounded-md hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors"
-                                title="收起">
-                                <XCircle size={16} />
-                            </button>
-                        </div>
-
-                        {/* --- Audio Player Bar --- */}
-                        <div className="px-4 py-3 shrink-0 border-b border-slate-200/40 bg-white/60">
-                            <div className="flex items-center gap-2.5">
-                                <button onClick={() => setIsPlaying(!isPlaying)}
-                                    className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors shrink-0">
-                                    {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                {
+                    isEvidencePanelOpen && (
+                        <div className="w-[28%] h-full bg-slate-50/90 backdrop-blur-sm flex flex-col border-l border-slate-200/60 animate-in slide-in-from-right-8 duration-300">
+                            {/* --- Sticky Header: Title + Close --- */}
+                            <div className="px-4 py-2.5 shrink-0 border-b border-slate-200/60 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <img src={EILEEN_AVATAR} className="w-5 h-5 rounded-full border border-indigo-100" />
+                                    <h3 className="text-[12px] font-extrabold text-slate-600 uppercase tracking-widest">
+                                        {name}的访谈纪录
+                                    </h3>
+                                    <span className="text-[12px] text-slate-400 font-medium">{formatTime(totalDuration)}</span>
+                                </div>
+                                <button onClick={() => { setIsEvidencePanelOpen(false); setActiveSectionId(null); setExpandedSegmentId(null); }}
+                                    className="p-1 rounded-md hover:bg-slate-200/60 text-slate-400 hover:text-slate-600 transition-colors"
+                                    title="收起">
+                                    <XCircle size={16} />
                                 </button>
-                                <div className="flex-1 min-w-0">
-                                    {/* Scrubber bar with colored segments */}
-                                    <div className="relative h-2 bg-slate-200 rounded-full cursor-pointer group"
-                                        onClick={(e) => {
-                                            const rect = e.currentTarget.getBoundingClientRect();
-                                            const pct = (e.clientX - rect.left) / rect.width;
-                                            seekTo(Math.round(pct * totalDuration));
-                                        }}>
-                                        {/* Colored segment markers on the bar */}
-                                        {interviewTimeline.filter(s => s.status !== 'neutral').map(seg => {
-                                            const left = (seg.startSec / totalDuration) * 100;
-                                            const width = ((seg.endSec - seg.startSec) / totalDuration) * 100;
-                                            const color = seg.status === 'risk' ? 'bg-rose-400' : seg.status === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
-                                            return (
-                                                <div key={seg.id} className={`absolute top-0 h-full ${color} rounded-full opacity-60`}
-                                                    style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }} />
-                                            );
-                                        })}
-                                        {/* Playback position indicator */}
-                                        <div className="absolute top-0 h-full bg-slate-600 rounded-full transition-all duration-150"
-                                            style={{ width: `${(playbackTime / totalDuration) * 100}%` }} />
-                                        <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-800 rounded-full shadow-sm border-2 border-white transition-all duration-150 group-hover:scale-125"
-                                            style={{ left: `${(playbackTime / totalDuration) * 100}%`, marginLeft: '-6px' }} />
-                                    </div>
-                                    {/* Time display */}
-                                    <div className="flex justify-between mt-1">
-                                        <span className="text-[11px] font-mono text-slate-400">{formatTime(playbackTime)}</span>
-                                        <span className="text-[11px] font-mono text-slate-400">{formatTime(totalDuration)}</span>
+                            </div>
+
+                            {/* --- Audio Player Bar --- */}
+                            <div className="px-4 py-3 shrink-0 border-b border-slate-200/40 bg-white/60">
+                                <div className="flex items-center gap-2.5">
+                                    <button onClick={() => setIsPlaying(!isPlaying)}
+                                        className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors shrink-0">
+                                        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                                    </button>
+                                    <div className="flex-1 min-w-0">
+                                        {/* Scrubber bar with colored segments */}
+                                        <div className="relative h-2 bg-slate-200 rounded-full cursor-pointer group"
+                                            onClick={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const pct = (e.clientX - rect.left) / rect.width;
+                                                seekTo(Math.round(pct * totalDuration));
+                                            }}>
+                                            {/* Colored segment markers on the bar */}
+                                            {interviewTimeline.filter(s => s.status !== 'neutral').map(seg => {
+                                                const left = (seg.startSec / totalDuration) * 100;
+                                                const width = ((seg.endSec - seg.startSec) / totalDuration) * 100;
+                                                const color = seg.status === 'risk' ? 'bg-rose-400' : seg.status === 'warning' ? 'bg-amber-400' : 'bg-emerald-400';
+                                                return (
+                                                    <div key={seg.id} className={`absolute top-0 h-full ${color} rounded-full opacity-60`}
+                                                        style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }} />
+                                                );
+                                            })}
+                                            {/* Playback position indicator */}
+                                            <div className="absolute top-0 h-full bg-slate-600 rounded-full transition-all duration-150"
+                                                style={{ width: `${(playbackTime / totalDuration) * 100}%` }} />
+                                            <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-800 rounded-full shadow-sm border-2 border-white transition-all duration-150 group-hover:scale-125"
+                                                style={{ left: `${(playbackTime / totalDuration) * 100}%`, marginLeft: '-6px' }} />
+                                        </div>
+                                        {/* Time display */}
+                                        <div className="flex justify-between mt-1">
+                                            <span className="text-[11px] font-mono text-slate-400">{formatTime(playbackTime)}</span>
+                                            <span className="text-[11px] font-mono text-slate-400">{formatTime(totalDuration)}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* --- Chapter List (all collapsed by default) --- */}
-                        <div className="flex-1 overflow-y-auto scroll-smooth">
-                            {interviewTimeline.map((seg) => {
-                                const obs = seg.obsId ? observations.find(o => o.id === seg.obsId) : null;
-                                const isExpanded = expandedSegmentId === seg.id;
-                                const isActive = obs && activeSectionId && (activeSectionId === obs.relatedSectionId || activeSectionId.startsWith(obs.relatedSectionId || ''));
-                                const statusConfig: Record<string, { dot: string; border: string; bg: string; text: string; badge: string }> = {
-                                    risk: { dot: 'bg-rose-400', border: 'border-l-rose-400', bg: 'bg-rose-50/50', text: 'text-rose-700', badge: '🚨 矛盾' },
-                                    warning: { dot: 'bg-amber-400', border: 'border-l-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700', badge: '⚠️ 存疑' },
-                                    passed: { dot: 'bg-emerald-400', border: 'border-l-emerald-200', bg: 'bg-emerald-50/30', text: 'text-emerald-600', badge: '✅ 通过' },
-                                    neutral: { dot: 'bg-slate-300', border: 'border-l-slate-200', bg: 'bg-transparent', text: 'text-slate-500', badge: '' },
-                                };
-                                const sc = statusConfig[seg.status];
+                            {/* --- Chapter List (all collapsed by default) --- */}
+                            <div className="flex-1 overflow-y-auto scroll-smooth">
+                                {interviewTimeline.map((seg) => {
+                                    const obs = seg.obsId ? observations.find(o => o.id === seg.obsId) : null;
+                                    const isExpanded = expandedSegmentId === seg.id;
+                                    const isActive = obs && activeSectionId && (activeSectionId === obs.relatedSectionId || activeSectionId.startsWith(obs.relatedSectionId || ''));
+                                    const statusConfig: Record<string, { dot: string; border: string; bg: string; text: string; badge: string }> = {
+                                        risk: { dot: 'bg-rose-400', border: 'border-l-rose-400', bg: 'bg-rose-50/50', text: 'text-rose-700', badge: '🚨 矛盾' },
+                                        warning: { dot: 'bg-amber-400', border: 'border-l-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700', badge: '⚠️ 存疑' },
+                                        passed: { dot: 'bg-emerald-400', border: 'border-l-emerald-200', bg: 'bg-emerald-50/30', text: 'text-emerald-600', badge: '✅ 通过' },
+                                        neutral: { dot: 'bg-slate-300', border: 'border-l-slate-200', bg: 'bg-transparent', text: 'text-slate-500', badge: '' },
+                                    };
+                                    const sc = statusConfig[seg.status];
 
-                                return (
-                                    <div key={seg.id} id={obs ? `obs-card-${obs.id}` : `seg-${seg.id}`}
-                                        className={`border-l-[3px] ${sc.border} border-b border-slate-100 transition-all duration-200 ${isActive ? `${sc.bg} ring-1 ring-inset ring-indigo-200` : ''
-                                            }`}>
-                                        {/* Chapter header (always visible, always clickable) */}
-                                        <div className="flex items-center gap-2.5 px-3 py-3 cursor-pointer hover:bg-slate-100/60 transition-colors select-none"
-                                            onClick={() => toggleSegment(seg.id)}>
-                                            <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`}></div>
-                                            <button onClick={(e) => { e.stopPropagation(); seekTo(seg.startSec); }}
-                                                className="text-[12px] font-mono text-slate-400 hover:text-indigo-600 hover:underline shrink-0 transition-colors"
-                                                title="跳转播放">
-                                                {formatTime(seg.startSec)}
-                                            </button>
-                                            <span className={`text-[13px] font-semibold flex-1 truncate ${seg.status === 'neutral' ? 'text-slate-500' : sc.text}`}>
-                                                {seg.label}
-                                            </span>
-                                            {seg.status !== 'neutral' && (
-                                                <span className={`text-[11px] font-bold ${sc.text} shrink-0`}>{sc.badge}</span>
-                                            )}
-                                            <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                                        </div>
-
-                                        {/* Expanded detail (obs detail for flagged, transcript for neutral) */}
-                                        {isExpanded && (
-                                            <div className={`px-4 pb-3 pt-1 ml-3 space-y-2.5 animate-in slide-in-from-top-2 duration-200 ${sc.bg} rounded-b-md`}>
-                                                {obs ? (
-                                                    <>
-                                                        <p className="text-[13px] text-slate-600 leading-relaxed">{obs.observation}</p>
-                                                        {obs.quote && (
-                                                            <div className="pl-3 border-l-2 border-slate-300/60">
-                                                                <p className="text-[12px] text-slate-500 italic leading-relaxed">"{obs.quote}"</p>
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                ) : seg.transcript ? (
-                                                    <p className="text-[13px] text-slate-500 leading-relaxed">{seg.transcript}</p>
-                                                ) : null}
-                                                <button onClick={() => seekTo(seg.startSec)}
-                                                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 text-white rounded text-[12px] font-bold hover:bg-indigo-600 transition-colors w-fit">
-                                                    <Play size={10} fill="currentColor" /> 播放 {formatTime(seg.startSec)} - {formatTime(seg.endSec)}
+                                    return (
+                                        <div key={seg.id} id={obs ? `obs-card-${obs.id}` : `seg-${seg.id}`}
+                                            className={`border-l-[3px] ${sc.border} border-b border-slate-100 transition-all duration-200 ${isActive ? `${sc.bg} ring-1 ring-inset ring-indigo-200` : ''
+                                                }`}>
+                                            {/* Chapter header (always visible, always clickable) */}
+                                            <div className="flex items-center gap-2.5 px-3 py-3 cursor-pointer hover:bg-slate-100/60 transition-colors select-none"
+                                                onClick={() => toggleSegment(seg.id)}>
+                                                <div className={`w-2 h-2 rounded-full shrink-0 ${sc.dot}`}></div>
+                                                <button onClick={(e) => { e.stopPropagation(); seekTo(seg.startSec); }}
+                                                    className="text-[12px] font-mono text-slate-400 hover:text-indigo-600 hover:underline shrink-0 transition-colors"
+                                                    title="跳转播放">
+                                                    {formatTime(seg.startSec)}
                                                 </button>
+                                                <span className={`text-[13px] font-semibold flex-1 truncate ${seg.status === 'neutral' ? 'text-slate-500' : sc.text}`}>
+                                                    {seg.label}
+                                                </span>
+                                                {seg.status !== 'neutral' && (
+                                                    <span className={`text-[11px] font-bold ${sc.text} shrink-0`}>{sc.badge}</span>
+                                                )}
+                                                <ChevronDown size={14} className={`text-slate-400 shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+
+                                            {/* Expanded detail (obs detail for flagged, transcript for neutral) */}
+                                            {isExpanded && (
+                                                <div className={`px-4 pb-3 pt-1 ml-3 space-y-2.5 animate-in slide-in-from-top-2 duration-200 ${sc.bg} rounded-b-md`}>
+                                                    {obs ? (
+                                                        <>
+                                                            <p className="text-[13px] text-slate-600 leading-relaxed">{obs.observation}</p>
+                                                            {obs.quote && (
+                                                                <div className="pl-3 border-l-2 border-slate-300/60">
+                                                                    <p className="text-[12px] text-slate-500 italic leading-relaxed">"{obs.quote}"</p>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : seg.transcript ? (
+                                                        <p className="text-[13px] text-slate-500 leading-relaxed">{seg.transcript}</p>
+                                                    ) : null}
+                                                    <button onClick={() => seekTo(seg.startSec)}
+                                                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 text-white rounded text-[12px] font-bold hover:bg-indigo-600 transition-colors w-fit">
+                                                        <Play size={10} fill="currentColor" /> 播放 {formatTime(seg.startSec)} - {formatTime(seg.endSec)}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
         );
     };
 
@@ -785,22 +853,23 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
             {/* === BOTTOM STICKY DECISION BAR === */}
             {decisionState === 'NONE' && (
                 <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end gap-3 shadow-[0_-2px_10px_rgba(0,0,0,0.04)]">
-                    <button
-                        onClick={() => handleDecision('REJECTED')}
-                        className="flex items-center gap-2 px-5 py-2 bg-white border border-rose-200 text-rose-600 text-[13px] font-bold rounded-lg hover:bg-rose-50 transition-all whitespace-nowrap"
-                    >
+                    <span className="text-[12px] text-slate-400 font-medium mr-auto">您的决策：</span>
+                    <button onClick={() => handleDecision('HOLD')}
+                        className="flex items-center gap-1.5 px-5 py-2 bg-white border border-slate-200 hover:border-rose-200 text-slate-500 hover:text-rose-600 text-[13px] font-bold rounded-lg transition-all hover:bg-rose-50">
                         <XCircle size={14} /> 淘汰
                     </button>
-                    <button
-                        onClick={() => handleDecision('APPROVED')}
-                        className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-600 shadow-md shadow-slate-300/50 transition-all whitespace-nowrap"
-                    >
-                        <UserCheck size={14} /> 通过
+                    <button onClick={() => handleDecision('FOLLOWUP')}
+                        className="flex items-center gap-1.5 px-5 py-2 bg-amber-50 border border-amber-200 text-amber-700 text-[13px] font-bold rounded-lg hover:bg-amber-100 transition-all">
+                        <AlertTriangle size={14} /> 待定
+                    </button>
+                    <button onClick={() => handleDecision('PROCEED')}
+                        className="flex items-center gap-1.5 px-5 py-2 bg-slate-900 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-600 shadow-md shadow-slate-300/50 transition-all">
+                        <CheckCircle2 size={14} /> 通过
                     </button>
                 </div>
             )}
             {decisionState === 'PROCESSING' && (
-                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end">
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-center">
                     <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg">
                         <Loader2 size={14} className="animate-spin text-slate-500" />
                         <span className="text-[13px] font-bold text-slate-500">处理中...</span>
@@ -808,8 +877,21 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                 </div>
             )}
             {decisionState !== 'NONE' && decisionState !== 'PROCESSING' && (
-                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end">
-                    <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-[13px] font-bold rounded-lg hover:bg-slate-200 transition-all">
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center gap-3">
+                    <div className={`flex-1 flex items-center gap-2 py-2 px-3 rounded-lg ${decisionState === 'PROCEED' ? 'bg-emerald-50 border border-emerald-200' :
+                        decisionState === 'FOLLOWUP' ? 'bg-amber-50 border border-amber-200' :
+                            'bg-rose-50 border border-rose-200'
+                        }`}>
+                        {decisionState === 'PROCEED' && <><CheckCircle2 size={16} className="text-emerald-600" /> <span className="text-[13px] font-bold text-emerald-700">已标记为「通过」，将进入下一轮面试安排</span></>}
+                        {decisionState === 'FOLLOWUP' && <><AlertTriangle size={16} className="text-amber-600" /> <span className="text-[13px] font-bold text-amber-700">已标记为「待定」，建议补充追问后再决策</span></>}
+                        {decisionState === 'HOLD' && <><XCircle size={16} className="text-rose-600" /> <span className="text-[13px] font-bold text-rose-700">已标记为「淘汰」</span></>}
+                        <button onClick={() => setDecisionState('NONE')}
+                            className="ml-auto text-[12px] text-slate-400 hover:text-slate-600 font-medium underline underline-offset-2">
+                            撤回
+                        </button>
+                    </div>
+                    <button onClick={() => onNavigate(ViewState.DASHBOARD)}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-[13px] font-bold rounded-lg hover:bg-slate-200 transition-all shrink-0">
                         返回工作台
                     </button>
                 </div>

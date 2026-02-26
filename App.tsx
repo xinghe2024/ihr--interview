@@ -1,25 +1,48 @@
 import React, { useState } from 'react';
 import { ViewState } from './types';
+import { AuthProvider, useAuth } from './components/AuthContext';
 import EileenSidebar from './components/EileenSidebar';
 import CanvasArea from './components/CanvasArea';
 import OrderDetailView from './components/views/OrderDetailView';
-import { Smartphone, Monitor, Lock, RefreshCcw, ArrowLeft, ArrowRight, Star } from 'lucide-react';
+import WelcomeView from './components/views/WelcomeView';
+import { Smartphone, MessageCircle } from 'lucide-react';
 
-const App: React.FC = () => {
+const AppInner: React.FC = () => {
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [browserContext, setBrowserContext] = useState<'empty' | 'resume'>('empty');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleNavigate = (view: ViewState, candidateId?: string) => {
     setCurrentView(view);
     if (candidateId) setSelectedCandidateId(candidateId);
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/20">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200/50 animate-pulse">
+            <span className="text-white text-lg font-bold">N</span>
+          </div>
+          <p className="text-[13px] text-slate-500">正在加载...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in → Welcome page
+  if (!isAuthenticated || currentView === ViewState.WELCOME) {
+    return <WelcomeView onNavigate={handleNavigate} />;
+  }
+
   // 1. FULL SCREEN VIEWS (Immersive Mode)
   if (currentView === ViewState.CANDIDATE_MOBILE) {
     return (
-      <CanvasArea 
-        currentView={currentView} 
+      <CanvasArea
+        currentView={currentView}
         selectedCandidateId={selectedCandidateId}
         onNavigate={handleNavigate}
         browserContext={browserContext}
@@ -30,64 +53,54 @@ const App: React.FC = () => {
 
   // Unified Order Detail View (Report & Tracking) - Full Screen
   if (currentView === ViewState.REPORT) {
-     return <OrderDetailView candidateId={selectedCandidateId} onNavigate={handleNavigate} defaultTab="ANALYSIS" />;
+    return <OrderDetailView candidateId={selectedCandidateId} onNavigate={handleNavigate} defaultTab="ANALYSIS" />;
   }
 
   if (currentView === ViewState.ORDER_TRACKING) {
-     return <OrderDetailView candidateId={selectedCandidateId} onNavigate={handleNavigate} defaultTab="TIMELINE" />;
+    return <OrderDetailView candidateId={selectedCandidateId} onNavigate={handleNavigate} defaultTab="TIMELINE" />;
   }
 
-  // 2. SPLIT LAYOUT VIEW (Dashboard + Sidebar)
+  // 2. MAIN LAYOUT: Full-screen Dashboard + Floating Sidebar
   return (
-    // Reduced padding (p-4) to maximize space and prevent "cramped" feeling on smaller screens
-    <div className="flex h-screen w-full overflow-hidden font-sans p-4 gap-4 relative z-10">
-      
-      {/* Main Content Area (The "Browser Window") - Updated for AI Holographic Glass */}
-      <div className="flex-1 flex flex-col overflow-hidden relative shadow-float rounded-2xl bg-white/40 border border-white/40 backdrop-blur-2xl backdrop-brightness-110 ring-1 ring-white/50">
-        
-        {/* URL Bar Mock - Fixed Height */}
-        <div className="h-12 shrink-0 bg-white/40 border-b border-white/30 flex items-center px-4 gap-4 backdrop-blur-xl z-20">
-            <div className="flex gap-2">
-                <button className="p-1.5 hover:bg-black/5 rounded-md text-slate-500 transition-colors"><ArrowLeft size={14} /></button>
-                <button className="p-1.5 hover:bg-black/5 rounded-md text-slate-500 transition-colors"><ArrowRight size={14} /></button>
-                <button className="p-1.5 hover:bg-black/5 rounded-md text-slate-500 transition-colors"><RefreshCcw size={14} /></button>
-            </div>
-            <div className="flex-1 bg-white/40 border border-white/50 rounded-full h-8 flex items-center px-3 text-xs text-slate-600 shadow-inner gap-2 transition-all hover:bg-white/60">
-                <Lock size={10} className="text-emerald-600" />
-                <span className="flex-1 truncate font-medium">
-                    {browserContext === 'resume' ? 'zhaopin.com/candidate/zhangsan' : 'chrome://newtab'}
-                </span>
-                <Star size={12} className="text-slate-400 hover:text-amber-400 cursor-pointer" />
-            </div>
-             <div className="flex gap-1.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-glow border-2 border-white/30">Me</div>
-            </div>
-        </div>
+    <div className="flex h-screen w-full overflow-hidden font-sans relative">
 
-        {/* Page Content Wrapper - Flex 1 with min-h-0 to enforce scroll within this area */}
-        <div className="flex-1 relative min-h-0 bg-gradient-to-b from-white/10 to-transparent">
-            <CanvasArea 
-              currentView={currentView} 
-              selectedCandidateId={selectedCandidateId}
-              onNavigate={handleNavigate}
-              browserContext={browserContext}
-              setBrowserContext={setBrowserContext}
-            />
-        </div>
+      {/* Main Content Area — Full Width, no URL bar */}
+      <div className={`flex-1 flex flex-col overflow-hidden relative transition-all duration-300 ${isSidebarOpen ? 'mr-[400px]' : ''}`}>
+        <CanvasArea
+          currentView={currentView}
+          selectedCandidateId={selectedCandidateId}
+          onNavigate={handleNavigate}
+          browserContext={browserContext}
+          setBrowserContext={setBrowserContext}
+        />
       </div>
 
-      {/* Extension Sidebar (Right Side Panel) - Updated for Binary Warmth */}
-      <div className="w-[380px] shrink-0 h-full flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-white/40 bg-white/30 backdrop-blur-2xl relative ring-1 ring-white/40">
-        <EileenSidebar 
-            currentView={currentView} 
-            onNavigate={handleNavigate} 
-            browserContext={browserContext}
+      {/* Floating Sidebar Toggle Button */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed right-6 bottom-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-300/40 hover:shadow-2xl hover:scale-110 transition-all flex items-center justify-center group"
+          title="唤起艾琳"
+        >
+          <MessageCircle size={22} className="group-hover:scale-110 transition-transform" />
+          <span className="absolute top-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
+        </button>
+      )}
+
+      {/* Sidebar Panel — Slides in from right */}
+      <div className={`fixed top-0 right-0 h-full w-[400px] z-40 flex flex-col shadow-2xl bg-white/30 backdrop-blur-2xl border-l border-white/40 transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <EileenSidebar
+          currentView={currentView}
+          onNavigate={handleNavigate}
+          browserContext={browserContext}
+          onLogout={logout}
+          onClose={() => setIsSidebarOpen(false)}
         />
       </div>
 
       {/* Dev Switcher */}
       <div className="fixed bottom-6 left-6 z-50 flex gap-2 group">
-         <button 
+        <button
           onClick={() => handleNavigate(ViewState.CANDIDATE_MOBILE)}
           className="bg-slate-900 text-white p-3 rounded-full shadow-float hover:scale-110 transition-transform ring-4 ring-white/30 backdrop-blur-sm"
           title="Switch to Candidate Phone Simulator"
@@ -98,5 +111,12 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+// Wrap with AuthProvider
+const App: React.FC = () => (
+  <AuthProvider>
+    <AppInner />
+  </AuthProvider>
+);
 
 export default App;

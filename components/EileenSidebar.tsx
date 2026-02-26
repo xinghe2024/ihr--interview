@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ViewState } from '../types';
-import { Send, Sparkles, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink } from 'lucide-react';
+import { useAuth } from './AuthContext';
+import { Send, Sparkles, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X } from 'lucide-react';
 
 interface EileenSidebarProps {
     currentView: ViewState;
     onNavigate: (view: ViewState, id?: string) => void;
     browserContext: 'empty' | 'resume';
+    onLogout?: () => void;
+    onClose?: () => void;
 }
 
-type MessageType = 'text' | 'invitation-card' | 'result-card';
+type MessageType = 'text' | 'invitation-card' | 'result-card' | 'ksq-card';
 
 interface Message {
     id: string;
@@ -21,10 +24,22 @@ interface Message {
 
 const EILEEN_AVATAR = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&q=80";
 
-const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext }) => {
+const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext, onLogout, onClose }) => {
+    const { user } = useAuth();
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setIsMenuOpen(false);
+        };
+        if (isMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isMenuOpen]);
 
     // Initial Message Logic
     const [messages, setMessages] = useState<Message[]>([]);
@@ -61,11 +76,36 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
     };
 
     const triggerAnalysisFlow = () => {
+        const ksqMsg: Message = {
+            id: 'ksq_' + Date.now(), sender: 'ai', type: 'ksq-card',
+            content: '简历解析完成。已为您生成初筛方案，请确认后开始 AI 面试 👇',
+            data: {
+                candidateName: '张三',
+                candidateRole: '高级前端工程师',
+                candidateExp: '5年经验',
+                ksqItems: [
+                    { id: 'ksq1', topic: 'React 项目经验深度', rubric: '能说出具体优化指标和数据' },
+                    { id: 'ksq2', topic: '微前端架构实操', rubric: '能描述接入的子应用数和分工' },
+                    { id: 'ksq3', topic: '离职动机核实', rubric: '各段经历的离开原因清晰连贯' },
+                ],
+                baselineItems: [
+                    { label: '核实求职意向（薪资/到岗/地域）', status: 'pass' },
+                    { label: '核实工作经历连贯性', status: 'pass' },
+                    { label: '观察表达与逻辑能力', status: 'pass' },
+                    { label: '了解求职动机与稳定性', status: 'pass' },
+                ]
+            },
+            timestamp: Date.now()
+        };
+        setMessages(prev => [...prev, ksqMsg]);
+    };
+
+    const triggerInvitationAfterKSQ = () => {
         const newCandidateId = 'zhangsan';
         const inviteLink = 'https://ihr.ai/i/' + newCandidateId + '_' + Date.now().toString(36);
         const invitationMsg: Message = {
             id: 'invitation_' + Date.now(), sender: 'ai', type: 'invitation-card',
-            content: '简历解析完成。已为该候选人生成 AI 初筛邀约，您可以复制邀约信息发送给候选人 👇',
+            content: '初筛方案已确认！已为该候选人生成 AI 初筛邀约，您可以复制邀约信息发送给候选人 👇',
             data: {
                 id: newCandidateId,
                 name: '张三',
@@ -169,6 +209,131 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         );
     };
 
+    const KSQCard = ({ msg }: { msg: Message }) => {
+        const [isEditing, setIsEditing] = useState(false);
+        const [confirmed, setConfirmed] = useState(false);
+        const [items, setItems] = useState<Array<{ id: string; topic: string; rubric: string }>>(msg.data.ksqItems);
+
+        const handleConfirm = () => {
+            setConfirmed(true);
+            setIsEditing(false);
+            setTimeout(() => triggerInvitationAfterKSQ(), 800);
+        };
+
+        const handleDelete = (id: string) => {
+            setItems(prev => prev.filter(i => i.id !== id));
+        };
+
+        const handleAdd = () => {
+            if (items.length >= 3) return;
+            setItems(prev => [...prev, { id: 'ksq_new_' + Date.now(), topic: '', rubric: '' }]);
+        };
+
+        const handleChange = (id: string, field: 'topic' | 'rubric', value: string) => {
+            setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+        };
+
+        if (confirmed) {
+            return (
+                <div className="mt-2 bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 text-center">
+                    <CheckCircle2 size={20} className="text-emerald-600 mx-auto mb-1" />
+                    <p className="text-[13px] font-bold text-emerald-700">初筛方案已确认</p>
+                    <p className="text-[11px] text-emerald-600 mt-0.5">正在生成邀约...</p>
+                </div>
+            );
+        }
+
+        return (
+            <div className="mt-2 bg-white/90 border border-indigo-100 rounded-xl overflow-hidden shadow-sm">
+                {/* Header */}
+                <div className="px-3 pt-3 pb-2">
+                    <div className="flex items-center gap-2 mb-1">
+                        <ClipboardCheck size={14} className="text-indigo-600" />
+                        <span className="text-[13px] font-bold text-slate-800">初筛方案</span>
+                    </div>
+                    <p className="text-[12px] text-slate-500">{msg.data.candidateName} · {msg.data.candidateRole} · {msg.data.candidateExp}</p>
+                </div>
+
+                {/* KSQ Focus Questions */}
+                <div className="px-3 pb-2">
+                    <div className="flex items-center gap-1.5 mb-2">
+                        <Search size={12} className="text-indigo-500" />
+                        <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">重点考察{isEditing ? '（可修改）' : ''}</span>
+                    </div>
+                    <div className="space-y-2">
+                        {items.map((item, idx) => (
+                            <div key={item.id} className="flex items-start gap-2">
+                                <span className="shrink-0 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[11px] font-bold mt-0.5">{idx + 1}</span>
+                                {isEditing ? (
+                                    <div className="flex-1 space-y-1">
+                                        <input value={item.topic} onChange={e => handleChange(item.id, 'topic', e.target.value)}
+                                            className="w-full text-[13px] font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-indigo-300"
+                                            placeholder="考察方向" />
+                                        <input value={item.rubric} onChange={e => handleChange(item.id, 'rubric', e.target.value)}
+                                            className="w-full text-[12px] text-slate-500 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-indigo-300"
+                                            placeholder="验证标准" />
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-bold text-slate-800 leading-snug">{item.topic}</p>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">验证标准：{item.rubric}</p>
+                                    </div>
+                                )}
+                                {isEditing && (
+                                    <button onClick={() => handleDelete(item.id)}
+                                        className="shrink-0 p-1 text-slate-300 hover:text-rose-500 transition-colors mt-0.5">
+                                        <Trash2 size={13} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {isEditing && items.length < 3 && (
+                            <button onClick={handleAdd}
+                                className="flex items-center gap-1.5 text-[12px] text-indigo-500 hover:text-indigo-700 font-medium pl-7 transition-colors">
+                                <Plus size={13} /> 新增一道题
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Baseline Coverage */}
+                {!isEditing && (
+                    <div className="mx-3 mb-2 px-2.5 py-2 bg-slate-50/80 border border-slate-100 rounded-lg">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">基础覆盖（自动完成）</p>
+                        <div className="flex flex-wrap gap-x-1 gap-y-0.5">
+                            {msg.data.baselineItems.map((b: any, i: number) => (
+                                <span key={i} className="text-[11px] text-slate-500">
+                                    ✓ {b.label}{i < msg.data.baselineItems.length - 1 ? ' ·' : ''}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="px-3 pb-3 pt-1 flex gap-2">
+                    {isEditing ? (
+                        <button onClick={handleConfirm}
+                            className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[13px] font-bold rounded-lg transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-1.5">
+                            <CheckCircle2 size={14} /> 确认并开始面试
+                        </button>
+                    ) : (
+                        <>
+                            <button onClick={handleConfirm}
+                                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[13px] font-bold rounded-lg transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-1.5">
+                                <CheckCircle2 size={14} /> 确认方案，生成邀约
+                            </button>
+                            <button onClick={() => setIsEditing(true)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-600 text-[13px] font-bold rounded-lg transition-all">
+                                ✏️ 修改方案
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const ResultCard = ({ msg }: { msg: Message }) => (
         <div onClick={() => onNavigate(ViewState.REPORT, msg.data.id)}
             className="mt-3 bg-gradient-to-br from-emerald-50/80 to-white border border-emerald-100/50 rounded-xl p-5 shadow-sm cursor-pointer group hover:shadow-md transition-all relative overflow-hidden">
@@ -216,15 +381,80 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                     </div>
                 </div>
 
-                {/* Header Action */}
-                <button
-                    onClick={() => onNavigate(ViewState.DASHBOARD)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/60 hover:bg-white/80 text-indigo-700 rounded-lg border border-white/60 shadow-sm transition-all hover:shadow-md group backdrop-blur-sm"
-                    title="查看工作进度"
-                >
-                    <LayoutGrid size={18} />
-                    <span className="text-[13px] font-bold hidden sm:inline">查看工作进度</span>
-                </button>
+                {/* Header Actions */}
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => onNavigate(ViewState.DASHBOARD)}
+                        className="p-2 bg-white/60 hover:bg-white/80 text-indigo-700 rounded-lg border border-white/60 shadow-sm transition-all hover:shadow-md backdrop-blur-sm"
+                        title="查看工作进度"
+                    >
+                        <LayoutGrid size={16} />
+                    </button>
+                    {/* ⋯ Three-dot menu */}
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className={`p-2 rounded-lg border border-white/60 shadow-sm transition-all backdrop-blur-sm ${isMenuOpen ? 'bg-white/90 text-indigo-700' : 'bg-white/60 hover:bg-white/80 text-slate-500 hover:text-slate-700'
+                                }`}
+                            title="设置"
+                        >
+                            <MoreHorizontal size={16} />
+                        </button>
+                        {/* Dropdown Menu */}
+                        {isMenuOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                {/* User Info */}
+                                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                            {user?.avatar ? (
+                                                <img src={user.avatar} className="w-full h-full object-cover" alt={user?.name} />
+                                            ) : (
+                                                user?.name?.charAt(0) || 'U'
+                                            )}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[13px] font-bold text-slate-800 truncate">{user?.name || '未登录'}</p>
+                                            <p className="text-[11px] text-slate-400 truncate">{user?.phone}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* Menu Items */}
+                                <div className="py-1">
+                                    <button onClick={() => { setIsMenuOpen(false); onNavigate(ViewState.DASHBOARD); }}
+                                        className="w-full px-4 py-2.5 text-left text-[12px] text-slate-600 hover:bg-slate-50 flex items-center gap-2.5 transition-colors">
+                                        <ExternalLink size={14} className="text-slate-400" /> 在新标签页打开工作台
+                                    </button>
+                                    <button onClick={() => setIsMenuOpen(false)}
+                                        className="w-full px-4 py-2.5 text-left text-[12px] text-slate-600 hover:bg-slate-50 flex items-center gap-2.5 transition-colors">
+                                        <Settings size={14} className="text-slate-400" /> 设置
+                                    </button>
+                                    <button onClick={() => setIsMenuOpen(false)}
+                                        className="w-full px-4 py-2.5 text-left text-[12px] text-slate-600 hover:bg-slate-50 flex items-center gap-2.5 transition-colors">
+                                        <HelpCircle size={14} className="text-slate-400" /> 使用帮助
+                                    </button>
+                                </div>
+                                {/* Logout */}
+                                <div className="border-t border-slate-100 py-1">
+                                    <button onClick={() => { setIsMenuOpen(false); onLogout?.(); }}
+                                        className="w-full px-4 py-2.5 text-left text-[12px] text-rose-500 hover:bg-rose-50 flex items-center gap-2.5 transition-colors">
+                                        <LogOut size={14} /> 退出登录
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Close sidebar */}
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="p-2 bg-white/60 hover:bg-white/80 text-slate-400 hover:text-slate-600 rounded-lg border border-white/60 shadow-sm transition-all backdrop-blur-sm"
+                            title="关闭侧边栏"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* 2.5. (removed — merged into footer smart bar) */}
@@ -243,6 +473,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                                         : 'bg-white/80 text-slate-800 rounded-[18px] rounded-bl-none border-white/50 shadow-sm'
                                     }`}>
                                     {msg.content}
+                                    {msg.type === 'ksq-card' && <KSQCard msg={msg} />}
                                     {msg.type === 'invitation-card' && <InvitationCard msg={msg} />}
                                     {msg.type === 'result-card' && <ResultCard msg={msg} />}
                                 </div>

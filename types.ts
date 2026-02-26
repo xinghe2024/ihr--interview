@@ -1,9 +1,10 @@
 
 export enum ViewState {
+  WELCOME = 'WELCOME',
   INITIATION = 'INITIATION',
   DASHBOARD = 'DASHBOARD',
   REPORT = 'REPORT',
-  ORDER_TRACKING = 'ORDER_TRACKING', // 🆕 New View for Order Tracking
+  ORDER_TRACKING = 'ORDER_TRACKING',
   CANDIDATE_MOBILE = 'CANDIDATE_MOBILE'
 }
 
@@ -224,4 +225,19 @@ export interface ResumeSection {
   title?: string;
   content: BasicProfile | Contact | JobPreference | ProfileSummary | WorkExperience | WorkExperience[] | ProjectExperience | ProjectExperience[] | Education | Strengths | Training | Language[] | Certificate[] | Skill[] | any; // 保持 any 以兼容旧数据
   verificationStatus?: 'verified' | 'warning' | 'risk' | 'neutral';
+}
+
+// ========== KSQ (Key Screening Questions) ==========
+
+export interface KSQItem {
+  id: string;
+  topic: string;          // e.g. "React 项目经验深度"
+  rubric: string;         // e.g. "能说出具体优化指标和数据"
+  result?: 'pass' | 'partial' | 'fail';
+  evidence?: string;      // e.g. "能说出 FCP 提升 40%，时间切片原理"
+}
+
+export interface BaselineCoverage {
+  label: string;          // e.g. "薪资匹配"
+  status: 'pass' | 'warning' | 'unchecked';
 }
