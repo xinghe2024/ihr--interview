@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Observation, SignalType } from '../../shared/types';
-import { Play, Mic2, AlertTriangle, AlertOctagon, CheckCircle2, MessageSquareQuote, ChevronRight, ChevronDown, Pause } from 'lucide-react';
+import { Play, Mic2, AlertTriangle, AlertOctagon, CheckCircle2, MessageSquareQuote, ChevronRight, ChevronDown, Pause, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 interface RedPenCardProps {
   data: Observation;
@@ -10,6 +10,7 @@ interface RedPenCardProps {
 const RedPenCard: React.FC<RedPenCardProps> = ({ data, isHighlighted = false }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcriptOpen, setTranscriptOpen] = useState(true);
+  const [feedback, setFeedback] = useState<'agree' | 'disagree' | null>(null);
 
   const getSignalStyle = (signal: SignalType) => {
     switch (signal) {
@@ -115,6 +116,25 @@ const RedPenCard: React.FC<RedPenCardProps> = ({ data, isHighlighted = false }) 
             </p>
           </div>
         )}
+
+        {/* HITL 反馈 */}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+          <span className="text-[10px] text-slate-400">您是否认同该判断？</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); setFeedback(feedback === 'agree' ? null : 'agree'); }}
+              className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-medium transition-all ${feedback === 'agree' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+            >
+              <ThumbsUp size={11} /> 同意
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setFeedback(feedback === 'disagree' ? null : 'disagree'); }}
+              className={`flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-medium transition-all ${feedback === 'disagree' ? 'bg-rose-100 text-rose-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+            >
+              <ThumbsDown size={11} /> 不同意
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

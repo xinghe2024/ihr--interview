@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ViewState } from '../shared/types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import ToastContainer from './components/Toast';
 import EileenSidebar from './components/EileenSidebar';
 import CanvasArea from './components/CanvasArea';
 import OrderDetailView from './views/OrderDetailView';
@@ -102,7 +104,7 @@ const AppInner: React.FC = () => {
       <div className="fixed bottom-6 left-6 z-50 flex gap-2 group">
         <button
           onClick={() => handleNavigate(ViewState.CANDIDATE_MOBILE)}
-          className="bg-slate-900 text-white p-3 rounded-full shadow-float hover:scale-110 transition-transform ring-4 ring-white/30 backdrop-blur-sm"
+          className="bg-indigo-600 text-white p-3 rounded-full shadow-float hover:scale-110 transition-transform ring-4 ring-indigo-200/40"
           title="Switch to Candidate Phone Simulator"
         >
           <Smartphone size={20} />
@@ -112,11 +114,14 @@ const AppInner: React.FC = () => {
   );
 };
 
-// Wrap with AuthProvider
+// Wrap with Providers
 const App: React.FC = () => (
-  <AuthProvider>
-    <AppInner />
-  </AuthProvider>
+  <NotificationProvider>
+    <AuthProvider>
+      <AppInner />
+      <ToastContainer />
+    </AuthProvider>
+  </NotificationProvider>
 );
 
 export default App;

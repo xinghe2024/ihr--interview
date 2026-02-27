@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ViewState, CandidateStatus, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../shared/types';
 import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign, Search } from 'lucide-react';
 import RedPenCard from '../components/RedPenCard';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface OrderDetailViewProps {
     candidateId: string | null;
@@ -123,6 +124,7 @@ const getMockCandidateContext = (id: string | null) => {
 };
 
 const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNavigate, defaultTab = 'ANALYSIS' }) => {
+    const { addToast } = useNotification();
     const { status, name, role, logs, avatar } = useMemo(() => getMockCandidateContext(candidateId), [candidateId]);
 
     // Local state for Decision Logic
@@ -145,13 +147,27 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackTime, setPlaybackTime] = useState(0);
+    const [isReportLoading, setIsReportLoading] = useState(true);
     const totalDuration = 900; // 15 minutes in seconds
+
+    // Skeleton entrance for report
+    useEffect(() => {
+        const timer = setTimeout(() => setIsReportLoading(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     // 3-WAY ROUTING DECISION HANDLER
     const handleDecision = (type: 'PROCEED' | 'FOLLOWUP' | 'HOLD') => {
         setDecisionState('PROCESSING');
         setTimeout(() => {
             setDecisionState(type);
+            const msgs: Record<string, { title: string; type: 'success' | 'warning' | 'error' }> = {
+                PROCEED: { title: `已通过「${name}」初筛`, type: 'success' },
+                FOLLOWUP: { title: `已标记「${name}」为待定`, type: 'warning' },
+                HOLD: { title: `已淘汰「${name}」`, type: 'error' },
+            };
+            const msg = msgs[type];
+            addToast({ type: msg.type, title: msg.title });
         }, 1000);
     };
 
@@ -311,15 +327,56 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const RenderAnalysisTab = () => {
         const rec = getAIRecommendation();
         const cfg = {
-            Proceed: { emoji: '🟢', label: '建议面试', accent: 'border-l-emerald-500', accentBg: 'bg-emerald-50/40', text: 'text-emerald-700', border: 'border-slate-200/80' },
-            FollowUp: { emoji: '🟡', label: '建议面试，但需重点关注', accent: 'border-l-amber-400', accentBg: 'bg-amber-50/30', text: 'text-amber-700', border: 'border-slate-200/80' },
-            Hold: { emoji: '🔴', label: '建议暂缓面试', accent: 'border-l-rose-500', accentBg: 'bg-rose-50/40', text: 'text-rose-700', border: 'border-slate-200/80' },
+            Proceed: { emoji: '🟢', label: '综合建议：推荐面试', accent: 'border-l-emerald-500', accentBg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-slate-200' },
+            FollowUp: { emoji: '🟡', label: '综合建议：可面试，需重点关注', accent: 'border-l-amber-400', accentBg: 'bg-amber-50', text: 'text-amber-700', border: 'border-slate-200' },
+            Hold: { emoji: '🔴', label: '综合建议：暂缓面试', accent: 'border-l-rose-500', accentBg: 'bg-rose-50', text: 'text-rose-700', border: 'border-slate-200' },
         }[rec.type];
+
+        if (isReportLoading) {
+            return (
+                <div className="flex-1 overflow-hidden p-8">
+                    <div className="max-w-[960px] mx-auto animate-pulse space-y-6">
+                        {/* Skeleton: Candidate card */}
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-slate-200 rounded-full shrink-0" />
+                                <div className="space-y-2 flex-1">
+                                    <div className="h-4 w-32 bg-slate-200 rounded" />
+                                    <div className="h-3 w-48 bg-slate-100 rounded" />
+                                </div>
+                            </div>
+                            <div className="h-16 bg-slate-50 rounded-lg border border-slate-100" />
+                        </div>
+                        {/* Skeleton: KSQ */}
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
+                            <div className="h-3 w-24 bg-slate-200 rounded" />
+                            {[1,2,3].map(i => (
+                                <div key={i} className="flex items-center gap-3">
+                                    <div className="w-5 h-5 bg-slate-200 rounded-full shrink-0" />
+                                    <div className="h-3 bg-slate-100 rounded flex-1" />
+                                    <div className="h-5 w-12 bg-slate-100 rounded-full" />
+                                </div>
+                            ))}
+                        </div>
+                        {/* Skeleton: Resume sections */}
+                        <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
+                            {[1,2,3,4].map(i => (
+                                <div key={i} className="space-y-2">
+                                    <div className="h-3 w-20 bg-slate-200 rounded" />
+                                    <div className="h-2 bg-slate-50 rounded w-full" />
+                                    <div className="h-2 bg-slate-50 rounded w-3/4" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="flex-1 flex overflow-hidden relative z-10">
                 {/* Left Column */}
-                <div className={`h-full overflow-y-auto scroll-smooth p-8 pb-32 bg-white/60 backdrop-blur-md transition-all duration-300 ${isEvidencePanelOpen ? 'w-[72%] border-r border-white/40' : 'w-full'}`}>
+                <div className={`h-full overflow-y-auto scroll-smooth p-8 pb-32 bg-transparent transition-all duration-300 ${isEvidencePanelOpen ? 'w-[72%] border-r border-slate-200' : 'w-full'}`}>
                     <div className={`mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 ${isEvidencePanelOpen ? 'max-w-full px-2' : 'max-w-[960px]'}`}>
 
                         {/* ===== 候选人速览卡 (Merged: Basic Info + AI Verdict + Follow-ups) ===== */}
@@ -352,8 +409,8 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
                             {/* --- AI Verdict + Baseline Badge Bar --- */}
                             <div className={`mx-5 mb-4 px-4 py-3 border-l-[3px] ${cfg.accent} ${cfg.accentBg} rounded-r-lg`}>
-                                <div className={`text-[13px] font-bold ${cfg.text} flex items-center gap-2`}>
-                                    <span className="text-sm">{cfg.emoji}</span> {cfg.label}
+                                <div className={`text-sm font-extrabold ${cfg.text} flex items-center gap-2`}>
+                                    <span className="text-base">{cfg.emoji}</span> {cfg.label}
                                 </div>
                                 <p className="text-[13px] text-slate-600 leading-relaxed mt-1.5 ml-5">"{coreSummary}"</p>
                                 <div className="mt-2.5 ml-5 flex flex-wrap gap-1.5">
@@ -369,7 +426,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             </div>
 
                             {/* --- Inner Card A: KSQ Results --- */}
-                            <div className="mx-5 mb-3 rounded-lg bg-slate-50/70 border border-slate-100 overflow-hidden">
+                            <div className="mx-5 mb-3 rounded-lg bg-slate-50 border border-slate-100 overflow-hidden">
                                 <div className="px-4 py-2.5 flex items-center gap-2 border-b border-slate-100/80">
                                     <Search size={13} className="text-indigo-500" />
                                     <span className="text-xs font-bold text-slate-700 tracking-wide">重点考察回答</span>
@@ -409,8 +466,8 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
                             {/* --- Inner Card B: Follow-up Questions --- */}
                             {followUpQuestions.length > 0 && (
-                                <div className="mx-5 mb-4 rounded-lg bg-amber-50/40 border border-amber-100/60 overflow-hidden">
-                                    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-amber-100/60">
+                                <div className="mx-5 mb-4 rounded-lg bg-amber-50 border border-amber-100 overflow-hidden">
+                                    <div className="px-4 py-2.5 flex items-center gap-2 border-b border-amber-100">
                                         <MessageSquare size={13} className="text-amber-500" />
                                         <span className="text-xs font-bold text-slate-700 tracking-wide">面试时建议重点追问</span>
                                         <span className="text-[11px] font-medium px-1.5 py-0.5 bg-white text-slate-400 rounded-full border border-amber-100">
@@ -491,9 +548,9 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                 {/* Right Column: Podcast-style Interview Player (collapsed by default) */}
                 {
                     isEvidencePanelOpen && (
-                        <div className="w-[28%] h-full bg-slate-50/90 backdrop-blur-sm flex flex-col border-l border-slate-200/60 animate-in slide-in-from-right-8 duration-300">
+                        <div className="w-[28%] h-full bg-slate-50 flex flex-col border-l border-slate-200 animate-in slide-in-from-right-8 duration-300">
                             {/* --- Sticky Header: Title + Close --- */}
-                            <div className="px-4 py-2.5 shrink-0 border-b border-slate-200/60 flex items-center justify-between">
+                            <div className="px-4 py-2.5 shrink-0 border-b border-slate-200 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <img src={EILEEN_AVATAR} className="w-5 h-5 rounded-full border border-indigo-100" />
                                     <h3 className="text-[12px] font-extrabold text-slate-600 uppercase tracking-widest">
@@ -509,7 +566,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             </div>
 
                             {/* --- Audio Player Bar --- */}
-                            <div className="px-4 py-3 shrink-0 border-b border-slate-200/40 bg-white/60">
+                            <div className="px-4 py-3 shrink-0 border-b border-slate-200 bg-white">
                                 <div className="flex items-center gap-2.5">
                                     <button onClick={() => setIsPlaying(!isPlaying)}
                                         className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center hover:bg-indigo-600 transition-colors shrink-0">
@@ -619,7 +676,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     const RenderTimelineTab = () => (
         <div className="flex-1 overflow-y-auto p-8 bg-transparent relative z-10">
             <div className="max-w-3xl mx-auto">
-                <div className="bg-white/80 backdrop-blur-md rounded-xl border border-white/60 shadow-glass overflow-hidden mb-8">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-8">
                     <div className="p-8">
                         {/* --- DYNAMIC PROGRESS BAR --- */}
                         <div className="relative flex justify-between mb-12">
@@ -720,9 +777,9 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     );
 
     const RenderRecordingTab = () => (
-        <div className="flex-1 flex overflow-hidden bg-white/70 backdrop-blur-md relative z-10">
-            <div className="w-[60%] flex flex-col border-r border-white/50">
-                <div className="px-6 py-4 border-b border-white/50 flex justify-between items-center">
+        <div className="flex-1 flex overflow-hidden bg-white relative z-10">
+            <div className="w-[60%] flex flex-col border-r border-slate-200">
+                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
                     <h3 className="font-bold text-slate-800 text-[13px]">全文转写 (Transcript)</h3>
                     <button className="text-[13px] text-indigo-600 font-bold flex items-center gap-1"><Download size={12} /> 导出文本</button>
                 </div>
@@ -749,8 +806,8 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
             </div>
 
             <div className="w-[40%] bg-transparent flex flex-col">
-                <div className="p-6 border-b border-white/50">
-                    <div className="bg-white/80 rounded-xl border border-white/60 p-4 shadow-glass">
+                <div className="p-6 border-b border-slate-200">
+                    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
                             <span className="text-xs font-bold text-slate-500">录音播放</span>
                             <span className="text-xs font-mono text-slate-400">14:20</span>
@@ -772,15 +829,12 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
     // --- MAIN RENDER ---
     return (
-        // Changed: Transparent main container
-        <div className="h-full w-full bg-transparent flex flex-col relative overflow-hidden font-sans">
-
-            {/* NEW: Ambient Gradient Blob */}
-            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-tr from-indigo-200/30 via-rose-200/20 to-transparent blur-[120px] pointer-events-none z-0"></div>
+        // Light frosted backdrop — aurora shows through subtly
+        <div className="h-full w-full bg-white/50 backdrop-blur-sm flex flex-col relative overflow-hidden font-sans">
 
             {/* 1. PERSISTENT HEADER (FIXED OVERFLOW & FLEX LAYOUT) */}
             {/* === SLIM NAV BAR (40px) === */}
-            <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 shrink-0 z-30 sticky top-0 flex items-center gap-1 h-11 shadow-sm">
+            <div className="bg-white border-b border-slate-200 px-4 shrink-0 z-30 sticky top-0 flex items-center gap-1 h-11 shadow-sm">
                 {/* TOAST FEEDBACK OVERLAY */}
                 {decisionState === 'APPROVED' && (
                     <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-top-4 fade-in z-50">
@@ -802,13 +856,12 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                 )}
 
                 {/* Back button */}
-                <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="w-7 h-7 flex items-center justify-center hover:bg-slate-100 rounded-md text-slate-400 hover:text-slate-600 transition-colors shrink-0">
-                    <ChevronLeft size={18} />
+                <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="flex items-center gap-1 px-2 py-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 text-sm font-medium transition-colors shrink-0">
+                    <ChevronLeft size={16} /> 返回
                 </button>
-                <span className="text-[13px] font-bold text-slate-700 mr-4 truncate">{name}</span>
 
                 {/* Tabs inline */}
-                <div className="flex items-center gap-0.5 bg-slate-100/60 rounded-lg p-0.5">
+                <div className="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5">
                     {[
                         { id: 'ANALYSIS', label: '智能分析', icon: CheckCircle2, disabled: status !== CandidateStatus.DELIVERED },
                         { id: 'TIMELINE', label: '任务进度', icon: Clock, disabled: false },
@@ -823,7 +876,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                                     ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5'
                                     : tab.disabled
                                         ? 'text-slate-300 cursor-not-allowed'
-                                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/40'}`}
+                                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
                         >
                             <tab.icon size={12} />
                             {tab.label}
@@ -836,8 +889,8 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
             {activeTab === 'ANALYSIS' && <RenderAnalysisTab />}
             {activeTab === 'TIMELINE' && <RenderTimelineTab />}
             {activeTab === 'RESUME' && (
-                <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-white/40 relative z-10">
-                    <div className="bg-white/80 backdrop-blur-md shadow-lg p-12 min-h-[800px] w-[800px]">
+                <div className="flex-1 overflow-y-auto p-8 flex justify-center bg-slate-50 relative z-10">
+                    <div className="bg-white shadow-sm border border-slate-200 p-12 min-h-[800px] w-[800px] rounded-xl">
                         <div className="border-b pb-6 mb-6">
                             <h1 className="text-2xl font-bold text-slate-900">{name}</h1>
                             <p className="text-slate-500 mt-2">{role} · 北京</p>
@@ -852,7 +905,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
             {/* === BOTTOM STICKY DECISION BAR === */}
             {decisionState === 'NONE' && (
-                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-end gap-3 shadow-[0_-2px_10px_rgba(0,0,0,0.04)]">
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-end gap-3 shadow-[0_-2px_10px_rgba(0,0,0,0.04)]">
                     <span className="text-[12px] text-slate-400 font-medium mr-auto">您的决策：</span>
                     <button onClick={() => handleDecision('HOLD')}
                         className="flex items-center gap-1.5 px-5 py-2 bg-white border border-slate-200 hover:border-rose-200 text-slate-500 hover:text-rose-600 text-[13px] font-bold rounded-lg transition-all hover:bg-rose-50">
@@ -863,13 +916,13 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                         <AlertTriangle size={14} /> 待定
                     </button>
                     <button onClick={() => handleDecision('PROCEED')}
-                        className="flex items-center gap-1.5 px-5 py-2 bg-slate-900 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-600 shadow-md shadow-slate-300/50 transition-all">
+                        className="flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[13px] font-bold rounded-lg shadow-md shadow-emerald-200 transition-all">
                         <CheckCircle2 size={14} /> 通过
                     </button>
                 </div>
             )}
             {decisionState === 'PROCESSING' && (
-                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center justify-center">
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-center">
                     <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-lg">
                         <Loader2 size={14} className="animate-spin text-slate-500" />
                         <span className="text-[13px] font-bold text-slate-500">处理中...</span>
@@ -877,7 +930,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                 </div>
             )}
             {decisionState !== 'NONE' && decisionState !== 'PROCESSING' && (
-                <div className="shrink-0 sticky bottom-0 z-30 bg-white/90 backdrop-blur-md border-t border-slate-200/60 px-6 py-3 flex items-center gap-3">
+                <div className="shrink-0 sticky bottom-0 z-30 bg-white border-t border-slate-200 px-6 py-3 flex items-center gap-3">
                     <div className={`flex-1 flex items-center gap-2 py-2 px-3 rounded-lg ${decisionState === 'PROCEED' ? 'bg-emerald-50 border border-emerald-200' :
                         decisionState === 'FOLLOWUP' ? 'bg-amber-50 border border-amber-200' :
                             'bg-rose-50 border border-rose-200'

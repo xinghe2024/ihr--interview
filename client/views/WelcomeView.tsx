@@ -408,7 +408,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                                     免登录预览
                                 </button>
                                 <button onClick={() => setStep('login')}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded-full text-[13px] font-bold transition-all flex items-center gap-1 shadow-sm">
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-full text-[13px] font-bold transition-all flex items-center gap-1 shadow-sm">
                                     登录 <ArrowRight size={14} />
                                 </button>
                             </>

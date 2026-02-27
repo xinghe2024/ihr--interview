@@ -122,9 +122,9 @@ const ReportView: React.FC<ReportViewProps> = ({ candidateId, onNavigate }) => {
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => onNavigate(ViewState.DASHBOARD)}
-                        className="w-8 h-8 flex items-center justify-center hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1.5 hover:bg-slate-100 rounded-lg text-slate-500 text-sm font-medium transition-colors"
                     >
-                        <ChevronLeft size={20} />
+                        <ChevronLeft size={18} /> 返回工作台
                     </button>
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm">ZS</div>
@@ -149,12 +149,19 @@ const ReportView: React.FC<ReportViewProps> = ({ candidateId, onNavigate }) => {
                         <XCircle size={16} /> 淘汰
                     </button>
                     <button
-                        className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-indigo-600 shadow-md transition-all"
+                        className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg shadow-md transition-all"
                         onClick={() => console.log('Action: Schedule Interview')}
                     >
                         <UserCheck size={16} /> 安排面试
                     </button>
                 </div>
+            </div>
+
+            {/* 1.5 TL;DR Verdict Banner */}
+            <div className="bg-emerald-50 border-b border-emerald-200 px-6 py-3 flex items-center gap-3 shrink-0">
+                <CheckCircle2 size={20} className="text-emerald-600" />
+                <span className="text-sm font-bold text-emerald-800">综合建议：推荐跟进</span>
+                <span className="text-xs text-emerald-600">AI 综合评分 82 分 · 技术能力突出，离职动机需复试核实</span>
             </div>
 
             {/* 2. Main Split Content */}

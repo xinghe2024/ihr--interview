@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ViewState } from '../../shared/types';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { Send, Sparkles, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X } from 'lucide-react';
 
 interface EileenSidebarProps {
@@ -26,9 +27,11 @@ const EILEEN_AVATAR = "https://images.unsplash.com/photo-1573496359142-b8d87734a
 
 const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext, onLogout, onClose }) => {
     const { user } = useAuth();
+    const { addToast } = useNotification();
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [introCollapsed, setIntroCollapsed] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -130,48 +133,64 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             document.execCommand('copy');
             document.body.removeChild(textarea);
         }
+        addToast({ type: 'success', title: '已复制到剪贴板', message: '邀约信息已复制，可直接粘贴发送给候选人' });
     };
 
     // --- COMPONENTS ---
-    const IntroCard = () => (
-        <div className="mb-6 mx-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="bg-gradient-to-br from-white/90 via-indigo-50/80 to-white/90 border border-white/60 rounded-2xl p-5 shadow-colorful backdrop-blur-md relative overflow-hidden group hover:shadow-lg transition-all">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-rose-200/20 to-indigo-200/20 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none"></div>
-                <div className="flex items-center gap-3 mb-3 relative z-10">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg">
-                        <Sparkles size={18} />
-                    </div>
-                    <h3 className="font-bold text-slate-800 text-[17px]">我是您的 AI 招聘助理 - 艾琳</h3>
+    const IntroCard = () => {
+        if (introCollapsed) {
+            return (
+                <div className="mb-4 mx-2">
+                    <button onClick={() => setIntroCollapsed(false)}
+                        className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[12px] font-bold text-indigo-600 hover:bg-indigo-100 transition-colors w-full">
+                        <Sparkles size={14} /> 我是艾琳，您的 AI 招聘助理 — 点击了解更多
+                    </button>
                 </div>
-                <p className="text-[14px] text-slate-600 leading-relaxed mb-5 relative z-10 font-medium">
-                    不要让我只做一个聊天机器人，请把我当做您的专业下属。我可以全权负责：
-                </p>
-                <div className="space-y-3.5 relative z-10">
-                    <div className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shadow-sm shrink-0 mt-0.5">1</div>
-                        <div>
-                            <span className="text-[14px] font-bold text-indigo-900 block leading-tight">深度阅卷</span>
-                            <span className="text-xs text-slate-500">解析简历疑点，生成面试策略</span>
+            );
+        }
+        return (
+            <div className="mb-6 mx-2">
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative">
+                    <button onClick={() => setIntroCollapsed(true)}
+                        className="absolute top-3 right-3 p-1 text-slate-300 hover:text-slate-500 transition-colors" title="收起">
+                        <X size={14} />
+                    </button>
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                            <Sparkles size={18} />
                         </div>
+                        <h3 className="font-bold text-slate-800 text-[17px]">我是您的 AI 招聘助理 - 艾琳</h3>
                     </div>
-                    <div className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shadow-sm shrink-0 mt-0.5">2</div>
-                        <div>
-                            <span className="text-[14px] font-bold text-indigo-900 block leading-tight">AI 初筛面试</span>
-                            <span className="text-xs text-slate-500">生成邀约链接，候选人自助完成初筛</span>
+                    <p className="text-[14px] text-slate-600 leading-relaxed mb-5 font-medium">
+                        不要让我只做一个聊天机器人，请把我当做您的专业下属。我可以全权负责：
+                    </p>
+                    <div className="space-y-3.5">
+                        <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">1</div>
+                            <div>
+                                <span className="text-[14px] font-bold text-slate-800 block leading-tight">深度阅卷</span>
+                                <span className="text-xs text-slate-500">解析简历疑点，生成面试策略</span>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-white border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shadow-sm shrink-0 mt-0.5">3</div>
-                        <div>
-                            <span className="text-[14px] font-bold text-indigo-900 block leading-tight">生成评估报告</span>
-                            <span className="text-xs text-slate-500">红笔批注简历，提供录音转写</span>
+                        <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">2</div>
+                            <div>
+                                <span className="text-[14px] font-bold text-slate-800 block leading-tight">AI 初筛面试</span>
+                                <span className="text-xs text-slate-500">生成邀约链接，候选人自助完成初筛</span>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">3</div>
+                            <div>
+                                <span className="text-[14px] font-bold text-slate-800 block leading-tight">生成评估报告</span>
+                                <span className="text-xs text-slate-500">红笔批注简历，提供录音转写</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const InvitationCard = ({ msg }: { msg: Message }) => {
         const [copied, setCopied] = useState(false);
@@ -385,20 +404,20 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => onNavigate(ViewState.DASHBOARD)}
-                        className="p-2 bg-white/60 hover:bg-white/80 text-indigo-700 rounded-lg border border-white/60 shadow-sm transition-all hover:shadow-md backdrop-blur-sm"
+                        className="p-2.5 bg-white hover:bg-slate-50 text-indigo-700 rounded-lg border border-slate-200 shadow-sm transition-all hover:shadow-md"
                         title="查看工作进度"
                     >
-                        <LayoutGrid size={16} />
+                        <LayoutGrid size={18} />
                     </button>
                     {/* ⋯ Three-dot menu */}
                     <div className="relative" ref={menuRef}>
                         <button
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className={`p-2 rounded-lg border border-white/60 shadow-sm transition-all backdrop-blur-sm ${isMenuOpen ? 'bg-white/90 text-indigo-700' : 'bg-white/60 hover:bg-white/80 text-slate-500 hover:text-slate-700'
+                            className={`p-2.5 rounded-lg border border-slate-200 shadow-sm transition-all ${isMenuOpen ? 'bg-white text-indigo-700' : 'bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700'
                                 }`}
                             title="设置"
                         >
-                            <MoreHorizontal size={16} />
+                            <MoreHorizontal size={18} />
                         </button>
                         {/* Dropdown Menu */}
                         {isMenuOpen && (
@@ -448,10 +467,10 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                     {onClose && (
                         <button
                             onClick={onClose}
-                            className="p-2 bg-white/60 hover:bg-white/80 text-slate-400 hover:text-slate-600 rounded-lg border border-white/60 shadow-sm transition-all backdrop-blur-sm"
+                            className="p-2.5 bg-white hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 shadow-sm transition-all"
                             title="关闭侧边栏"
                         >
-                            <X size={16} />
+                            <X size={18} />
                         </button>
                     )}
                 </div>
@@ -540,7 +559,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="上传简历，交给艾琳来初面..."
+                            placeholder="上传简历，或浏览网页版简历让我自动识别…"
                             className="flex-1 bg-transparent border-none outline-none text-[13px] text-slate-800 placeholder:text-slate-400 font-medium h-9 w-full"
                         />
                         <button
@@ -548,7 +567,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                             disabled={!inputValue.trim()}
                             className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 
                         ${inputValue.trim()
-                                    ? 'bg-gradient-to-r from-indigo-600 to-rose-500 text-white shadow-glow-warm hover:scale-105 hover:shadow-lg'
+                                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-200 hover:shadow-lg'
                                     : 'bg-white/50 text-slate-300'}`}
                         >
                             <Send size={18} fill={inputValue.trim() ? "currentColor" : "none"} />

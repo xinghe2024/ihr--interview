@@ -95,7 +95,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
             <div className="mt-5 space-y-3 shrink-0 pt-2 border-t border-transparent">
                 <button
                     onClick={() => setState('PERMISSION')}
-                    className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl text-[16px] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-[16px] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
                     接受委托，接入通话 <ArrowRight size={18} />
                 </button>
@@ -256,7 +256,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
 
             <button
                 onClick={onExit}
-                className="w-full py-4 bg-slate-900 text-white rounded-xl text-base font-bold shadow-lg"
+                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-base font-bold shadow-lg"
             >
                 退出页面
             </button>
