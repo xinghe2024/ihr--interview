@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState, CandidateStatus } from '../../shared/types';
-import { CheckCircle2, User, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, RefreshCw, Activity, Sparkles, UserCheck, Radio } from 'lucide-react';
+import { CheckCircle2, User, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, RefreshCw, Activity, Sparkles, UserCheck, Radio, Search } from 'lucide-react';
 
 interface DashboardViewProps {
     onNavigate: (view: ViewState, id: string) => void;
@@ -9,7 +9,8 @@ interface DashboardViewProps {
 }
 
 // EILEEN AVATAR
-const EILEEN_AVATAR = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&q=80";
+import eileenAvatarImg from '../assets/hr.png';
+const EILEEN_AVATAR = eileenAvatarImg;
 
 // --- REAL AVATAR MAPPING ---
 const AVATARS: Record<string, string> = {
@@ -71,8 +72,30 @@ const AGENT_ACTIVITIES = [
 
 type FilterType = 'ALL' | 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'EXCEPTION';
 
+// 轻量 info tooltip 组件
+const InfoTip = ({ text, className = '' }: { text: string; className?: string }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <span className={`relative inline-flex ${className}`}>
+            <button onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className="text-slate-300 hover:text-slate-500 transition-colors">
+                <HelpCircle size={13} />
+            </button>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+                    <div className="absolute left-0 top-full mt-2 z-50 w-48 px-3 py-2 bg-slate-800 text-white text-[11px] leading-relaxed rounded-lg shadow-lg">
+                        {text}
+                        <div className="absolute left-3 -top-1 w-2 h-2 bg-slate-800 rotate-45" />
+                    </div>
+                </>
+            )}
+        </span>
+    );
+};
+
 const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowserContext, onNavigate }) => {
     const [filter, setFilter] = useState<FilterType>('ALL');
+    const [searchQuery, setSearchQuery] = useState('');
     const [activityIndex, setActivityIndex] = useState(0);
 
     // Cycle through agent activities to make it feel alive
@@ -86,13 +109,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     const currentActivity = AGENT_ACTIVITIES[activityIndex];
     const ActivityIcon = currentActivity.icon;
 
-    // Filter Logic
+    // Filter + Search Logic
     const filteredList = MOCK_CANDIDATES.filter(c => {
-        if (filter === 'ALL') return true;
-        if (filter === 'PENDING') return c.status === CandidateStatus.PENDING_OUTREACH;
-        if (filter === 'ACTIVE') return [CandidateStatus.TOUCHED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status);
-        if (filter === 'COMPLETED') return c.status === CandidateStatus.DELIVERED;
-        if (filter === 'EXCEPTION') return c.status === CandidateStatus.EXCEPTION;
+        // Status filter
+        if (filter === 'PENDING' && c.status !== CandidateStatus.PENDING_OUTREACH) return false;
+        if (filter === 'ACTIVE' && ![CandidateStatus.TOUCHED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status)) return false;
+        if (filter === 'COMPLETED' && c.status !== CandidateStatus.DELIVERED) return false;
+        if (filter === 'EXCEPTION' && c.status !== CandidateStatus.EXCEPTION) return false;
+        // Search filter
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            return c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q);
+        }
         return true;
     });
 
@@ -170,19 +198,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5 h-4">
                                 <ActivityIcon size={12} className={`transition-colors duration-500 ${currentActivity.color} ${currentActivity.spin ? 'animate-spin' : ''}`} />
-                                <p className="text-xs text-slate-500 transition-all duration-500 fade-in slide-in-from-bottom-1 key={activityIndex}">
+                                <p className="text-xs text-slate-500 transition-all duration-500">
                                     {currentActivity.text}
                                 </p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="text-right mr-2 hidden sm:block">
-                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">今日消耗算力</div>
-                            <div className="text-sm font-bold text-slate-800">1,240 Tokens</div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -196,9 +218,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                    <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 relative overflow-hidden group hover:bg-white/60 hover:border-indigo-200 transition-all hover:shadow-glow">
+                    <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 relative group hover:bg-white/60 hover:border-indigo-200 transition-all hover:shadow-glow">
                         <div className="flex justify-between items-start">
-                            <span className="text-sm font-bold text-slate-600 tracking-wide">待触达</span>
+                            <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">待触达 <InfoTip text="简历已入库但艾琳尚未开始联系的候选人数量" /></span>
                             <div className="p-1.5 bg-white/60 rounded-md text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-colors"><User size={20} /></div>
                         </div>
                         <div>
@@ -209,7 +231,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
 
                     <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 group hover:bg-white/60 hover:border-indigo-200 transition-all hover:shadow-glow">
                         <div className="flex justify-between items-start">
-                            <span className="text-sm font-bold text-slate-600 tracking-wide">正在面试</span>
+                            <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">正在面试 <InfoTip text="艾琳正在进行 AI 语音面试或等待候选人接听的人数" /></span>
                             <div className="p-1.5 bg-indigo-50/60 rounded-md text-indigo-600"><Phone size={20} /></div>
                         </div>
                         <div>
@@ -220,7 +242,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
 
                     <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 group hover:bg-white/60 hover:border-emerald-200 transition-all hover:shadow-glow">
                         <div className="flex justify-between items-start">
-                            <span className="text-sm font-bold text-slate-600 tracking-wide">已交付</span>
+                            <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">已交付 <InfoTip text="面试完成且评估报告已生成，等待您查阅决策" /></span>
                             <div className="p-1.5 bg-emerald-50/60 rounded-md text-emerald-600"><CheckCircle2 size={20} /></div>
                         </div>
                         <div>
@@ -229,14 +251,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                         </div>
                     </div>
 
-                    <div className="bg-white/40 backdrop-blur-md p-5 rounded-2xl border border-white/50 shadow-glass flex flex-col justify-between h-28 relative overflow-hidden group hover:bg-white/60 hover:border-rose-200 transition-all hover:shadow-glow">
+                    <div className="backdrop-blur-md p-5 rounded-2xl border border-rose-200 shadow-glass flex flex-col justify-between h-28 relative group hover:bg-rose-50/80 transition-all">
+                        <div className="absolute inset-0 bg-rose-50/60 rounded-2xl animate-pulse pointer-events-none" />
                         <div className="flex justify-between items-start relative z-10">
-                            <span className="text-sm font-bold text-slate-600 tracking-wide">异常/需人工</span>
-                            <div className="p-1.5 bg-rose-50/60 rounded-md text-rose-600"><AlertTriangle size={20} /></div>
+                            <span className="text-sm font-bold text-rose-700 tracking-wide flex items-center gap-1">异常/需人工 <InfoTip text="呼叫失败、候选人未接通等需要您人工介入处理的情况" className="text-rose-300" /></span>
+                            <div className="p-1.5 bg-rose-100 rounded-md text-rose-600"><AlertTriangle size={20} /></div>
                         </div>
                         <div className="relative z-10">
-                            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">1</span>
-                            <span className="text-sm text-slate-500 ml-1 font-bold">人</span>
+                            <span className="text-3xl font-extrabold text-rose-600 tracking-tight">1</span>
+                            <span className="text-sm text-rose-400 ml-1 font-bold">人</span>
                         </div>
                     </div>
                 </div>
@@ -244,9 +267,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                 {/* 3. Main List Section - High Transparency & Modern Toolbar */}
                 <div className="flex flex-col bg-white/40 backdrop-blur-xl rounded-3xl border border-white/40 shadow-glass overflow-hidden">
                     {/* Toolbar - Redesigned: Glassy & Unified */}
-                    <div className="px-6 py-5 flex items-center sticky top-0 bg-white/40 backdrop-blur-md z-20 border-b border-white/20">
+                    <div className="px-6 py-5 flex items-center justify-between sticky top-0 bg-white/40 backdrop-blur-md z-20 border-b border-white/20">
 
-                        {/* New Pill Tabs */}
+                        {/* Pill Tabs */}
                         <div className="flex items-center p-1 bg-slate-100/50 rounded-full border border-white/30 backdrop-blur-sm">
                             {[{ id: 'ALL', label: '全部' }, { id: 'PENDING', label: '待触达' }, { id: 'ACTIVE', label: '执行中' }, { id: 'COMPLETED', label: '已交付' }, { id: 'EXCEPTION', label: '需关注' }].map((t) => {
                                 const isActive = filter === t.id;
@@ -260,6 +283,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                     </button>
                                 );
                             })}
+                        </div>
+
+                        {/* Search */}
+                        <div className="relative ml-4">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="搜索姓名或职位"
+                                className="pl-8 pr-3 py-1.5 w-48 text-[13px] bg-white/50 border border-white/40 rounded-full outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 placeholder:text-slate-400 transition-all"
+                            />
                         </div>
                     </div>
 
@@ -297,7 +332,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                     </span>
                                 </div>
                                 <div className="col-span-2 text-right pr-2 flex justify-end">
-                                    {c.status === CandidateStatus.PENDING_OUTREACH && <button className="text-[13px] font-bold text-slate-400 px-3 py-1.5">等待执行</button>}
+                                    {c.status === CandidateStatus.PENDING_OUTREACH && <span className="text-[12px] text-slate-400 font-medium">排队中...</span>}
                                     {c.status === CandidateStatus.DELIVERED && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.REPORT, c.id); }} className="px-4 py-2 bg-indigo-600 text-white text-[13px] font-bold rounded-lg hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 whitespace-nowrap flex items-center gap-1"><UserCheck size={14} /> 决策</button>}
                                     {[CandidateStatus.TOUCHED, CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING].includes(c.status) && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.ORDER_TRACKING, c.id); }} className="text-[13px] font-bold text-indigo-600 hover:bg-white/50 px-3 py-1.5 rounded-lg transition-colors">查看进度</button>}
                                     {c.status === CandidateStatus.EXCEPTION && <button onClick={(e) => { e.stopPropagation(); onNavigate(ViewState.ORDER_TRACKING, c.id); }} className="px-4 py-2 border border-rose-200 text-rose-600 text-[13px] font-bold rounded-lg hover:bg-rose-50 transition-all bg-white/80">人工介入</button>}
