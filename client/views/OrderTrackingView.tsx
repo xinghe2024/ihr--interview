@@ -100,7 +100,7 @@ const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ candidateId, onNa
                     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex justify-between items-start">
                         <div className="flex gap-5">
                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-xl font-bold text-slate-500">
-                                {candidateId === '2' ? 'WW' : candidateId === '3' ? 'QQ' : candidateId === '5' ? 'LS' : 'ZS'}
+                                {candidateId === '2' ? 'LY' : candidateId === '3' ? 'ZZ' : candidateId === '5' ? 'WX' : 'ZJ'}
                             </div>
                             <div>
                                 <h1 className="text-2xl font-extrabold text-slate-900 mb-2">

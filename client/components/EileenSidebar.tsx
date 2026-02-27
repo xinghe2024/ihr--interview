@@ -101,8 +101,8 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
     };
 
     const triggerInvitationAfterKSQ = () => {
-        const newCandidateId = 'zhangsan';
-        const inviteLink = 'https://ihr.ai/i/' + newCandidateId + '_' + Date.now().toString(36);
+        const newCandidateId = 'zhaojiaming';
+        const inviteLink = 'https://eileen.ai/i/' + newCandidateId + '_' + Date.now().toString(36);
         const invitationMsg: Message = {
             id: 'invitation_' + Date.now(), sender: 'ai', type: 'invitation-card',
             content: '初筛方案已确认！已为该候选人生成 AI 初筛邀约，您可以复制邀约信息发送给候选人 👇',

@@ -93,7 +93,7 @@ const getMockCandidateContext = (id: string | null) => {
 
     // Dynamic Timeline Logs Generation
     const logs: TimelineLog[] = [
-        { time: '14:00', title: '任务创建', detail: 'iHR 发起自动初筛任务', type: 'default' },
+        { time: '14:00', title: '任务创建', detail: '艾琳 发起自动初筛任务', type: 'default' },
         { time: '14:02', title: '简历解析完成', detail: '提取关键技能与工作经历', type: 'default' },
     ];
 
@@ -709,7 +709,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             {status !== CandidateStatus.DELIVERED && status !== CandidateStatus.EXCEPTION && (
                                 <div className="relative">
                                     <div className="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-slate-200 animate-pulse"></div>
-                                    <span className="text-xs text-slate-400 italic pl-1">iHR 正在执行下一步操作...</span>
+                                    <span className="text-xs text-slate-400 italic pl-1">艾琳 正在执行下一步操作...</span>
                                 </div>
                             )}
                         </div>
