@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../AuthContext';
-import { ViewState } from '../../types';
+import { useAuth } from '../contexts/AuthContext';
+import { ViewState } from '../../shared/types';
 import {
     Brain, Sparkles, Shield, Zap, CheckCircle2, Phone,
     ArrowRight, MessageSquare, FileSearch, BarChart3,
-    ChevronRight, Loader2
+    ChevronRight, Loader2, Trash2, Eye
 } from 'lucide-react';
+import heroDashboardImg from '../assets/hero-dashboard-preview.png';
 
 const EILEEN_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&q=80';
 
@@ -79,60 +80,76 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
         onNavigate(ViewState.DASHBOARD);
     };
 
-    // ---- Feature cards for the intro ----
+    // ---- FIX #1: Demo mode entry ----
+    const handleDemoMode = () => {
+        // Navigate directly to dashboard — AuthContext will handle demo/guest state
+        onNavigate(ViewState.DASHBOARD);
+    };
+
+    // ---- FIX #2 & #3: Feature cards with accent colors, realistic copy ----
     const features = [
         {
             icon: <FileSearch size={22} className="text-indigo-500" />,
             title: '一键解析简历',
             desc: '在招聘网站上直接解析候选人简历，自动提取关键信息',
+            accent: 'border-l-[3px] border-indigo-400',
+            iconBg: 'bg-indigo-50',
         },
         {
             icon: <MessageSquare size={22} className="text-violet-500" />,
             title: 'AI 智能初筛',
             desc: '艾琳自动完成电话初筛，覆盖求职意向、技能验证等核心维度',
+            accent: 'border-l-[3px] border-violet-400',
+            iconBg: 'bg-violet-50',
         },
         {
             icon: <BarChart3 size={22} className="text-emerald-500" />,
             title: '结构化报告',
             desc: '每位候选人生成可视化分析报告，一眼看清匹配度和风险点',
+            accent: 'border-l-[3px] border-emerald-400',
+            iconBg: 'bg-emerald-50',
         },
         {
+            // FIX #3: Rewritten copy — scenario-based, not "10x"
             icon: <Zap size={22} className="text-amber-500" />,
-            title: '效率提升 10x',
-            desc: '从"看简历到出结论"平均 3 天缩短至 15 分钟',
+            title: '15 分钟出结论',
+            desc: '从看简历到形成面试决策，原来 3 天的流程压缩至一杯咖啡的时间',
+            accent: 'border-l-[3px] border-amber-400',
+            iconBg: 'bg-amber-50',
         },
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/20 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100/80 flex flex-col overflow-y-auto">
             {/* --- Top Nav Bar --- */}
-            <nav className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-white/60 bg-white/40 backdrop-blur-xl">
+            <nav className="h-16 shrink-0 flex items-center justify-between px-8 border-b border-slate-200/60 bg-white/90 backdrop-blur-sm sticky top-0 z-30">
                 <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200/50">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-700 flex items-center justify-center shadow-md shadow-indigo-300/30">
                         <Brain size={18} className="text-white" />
                     </div>
                     <span className="text-lg font-bold text-slate-800 tracking-tight">IHR · NEXUS</span>
                     <span className="text-[11px] font-medium text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">Beta</span>
                 </div>
+                {/* FIX #5: Capsule button instead of tiny text link */}
                 {step === 'intro' && (
                     <button onClick={() => setStep('login')}
-                        className="text-[13px] font-medium text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1">
+                        className="text-[13px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-1.5 rounded-full border border-indigo-100 transition-all flex items-center gap-1.5 shadow-sm">
                         已有账号？登录 <ArrowRight size={14} />
                     </button>
                 )}
             </nav>
 
             {/* --- Main Content --- */}
-            <div className="flex-1 flex items-center justify-center p-8">
+            <div className="flex-1 flex flex-col items-center justify-start py-12 px-8">
                 {step === 'intro' && (
                     <div className="max-w-4xl w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
                         {/* Hero */}
-                        <div className="text-center mb-12">
+                        <div className="text-center mb-8">
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-[12px] font-medium text-indigo-600 mb-6">
                                 <Sparkles size={14} /> Chrome 插件已安装成功
                             </div>
                             <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-4 leading-tight">
-                                AI 招聘助理<span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">「艾琳」</span>
+                                AI 招聘助理<span className="text-indigo-700">「艾琳」</span>
                                 <br />已准备就绪
                             </h1>
                             <p className="text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
@@ -140,11 +157,23 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                             </p>
                         </div>
 
-                        {/* Feature Grid */}
-                        <div className="grid grid-cols-2 gap-4 mb-10">
+                        {/* FIX #6: Hero Product Screenshot */}
+                        <div className="mb-10 flex justify-center">
+                            <div className="relative max-w-2xl w-full group">
+                                <div className="absolute inset-0 bg-indigo-100/40 rounded-2xl blur-xl scale-105 opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                                <img
+                                    src={heroDashboardImg}
+                                    alt="艾琳工作台 - 智能招聘管理看板"
+                                    className="relative w-full rounded-2xl shadow-2xl shadow-slate-300/40 border border-white/60 group-hover:shadow-3xl group-hover:scale-[1.01] transition-all duration-500"
+                                />
+                            </div>
+                        </div>
+
+                        {/* FIX #2: Feature Grid with accent color bars */}
+                        <div className="grid grid-cols-2 gap-4 mb-8">
                             {features.map((f, i) => (
-                                <div key={i} className="bg-white/70 backdrop-blur-sm border border-white/80 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-indigo-100/80 transition-all duration-300 group">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <div key={i} className={`bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-300 group ${f.accent}`}>
+                                    <div className={`w-10 h-10 rounded-lg ${f.iconBg} border border-slate-100/50 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                                         {f.icon}
                                     </div>
                                     <h3 className="text-[14px] font-bold text-slate-800 mb-1">{f.title}</h3>
@@ -153,25 +182,51 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                             ))}
                         </div>
 
-                        {/* CTA */}
+                        {/* CTA + FIX #1 Demo entry + FIX #4 Trust badges */}
                         <div className="text-center">
                             <button onClick={() => setStep('login')}
-                                className="inline-flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[15px] font-bold rounded-xl shadow-lg shadow-indigo-200/50 hover:shadow-xl hover:shadow-indigo-300/50 hover:scale-[1.02] transition-all">
+                                className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-700 hover:bg-indigo-800 text-white text-[15px] font-bold rounded-xl shadow-lg shadow-indigo-300/30 hover:shadow-xl hover:scale-[1.02] transition-all">
                                 开始使用 <ChevronRight size={18} />
                             </button>
-                            <p className="text-[11px] text-slate-400 mt-3">登录后即可在招聘网站上使用全部功能</p>
+
+                            {/* FIX #1: Demo mode entry */}
+                            <div className="mt-3">
+                                <button onClick={handleDemoMode}
+                                    className="text-[13px] font-medium text-slate-500 hover:text-indigo-600 transition-colors inline-flex items-center gap-1.5 group">
+                                    <Eye size={14} className="group-hover:scale-110 transition-transform" />
+                                    先看看效果，免登录体验
+                                    <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                                </button>
+                            </div>
+
+                            {/* FIX #4: Trust badges */}
+                            <div className="flex items-center justify-center gap-5 mt-5 text-[11px] text-slate-400">
+                                <span className="flex items-center gap-1.5">
+                                    <Shield size={12} className="text-slate-400" /> 数据加密传输
+                                </span>
+                                <span className="w-px h-3 bg-slate-200"></span>
+                                <span className="flex items-center gap-1.5">
+                                    <CheckCircle2 size={12} className="text-slate-400" /> 不代发任何消息
+                                </span>
+                                <span className="w-px h-3 bg-slate-200"></span>
+                                <span className="flex items-center gap-1.5">
+                                    <Trash2 size={12} className="text-slate-400" /> 数据随时可删除
+                                </span>
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {step === 'login' && (
                     <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl shadow-xl shadow-slate-200/30 p-8">
+                        <div className="bg-white border border-slate-200/60 rounded-2xl shadow-xl shadow-slate-200/30 p-8">
                             {/* Avatar + Title */}
                             <div className="text-center mb-8">
-                                <div className="w-16 h-16 rounded-full mx-auto mb-4 bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center ring-4 ring-white shadow-md">
-                                    <img src={EILEEN_AVATAR} className="w-14 h-14 rounded-full object-cover" alt="Eileen" />
+                                <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-indigo-50 flex items-center justify-center ring-4 ring-white shadow-md">
+                                    <img src={EILEEN_AVATAR} className="w-14 h-14 rounded-full object-cover" alt="AI助理 · 艾琳" />
                                 </div>
+                                {/* FIX: Label the avatar clearly */}
+                                <p className="text-[11px] text-slate-400 mb-2">AI 助理 · 艾琳</p>
                                 <h2 className="text-xl font-bold text-slate-900">欢迎使用 IHR · NEXUS</h2>
                                 <p className="text-[13px] text-slate-500 mt-1">请验证手机号以绑定您的招聘数据</p>
                             </div>
@@ -229,18 +284,20 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                                     <p className="text-[12px] text-rose-500 font-medium pl-1">{error}</p>
                                 )}
 
-                                {/* Demo hint */}
-                                <div className="bg-indigo-50/60 border border-indigo-100 rounded-lg px-3 py-2">
-                                    <p className="text-[11px] text-indigo-600">
-                                        <strong>💡 体验提示：</strong>输入任意11位手机号，验证码输入 <strong>1234</strong> 即可登录
-                                    </p>
-                                </div>
+                                {/* Demo hint — only show in development */}
+                                {import.meta.env.DEV && (
+                                    <div className="bg-indigo-50/60 border border-indigo-100 rounded-lg px-3 py-2">
+                                        <p className="text-[11px] text-indigo-600">
+                                            <strong>💡 体验提示：</strong>输入任意11位手机号，验证码输入 <strong>1234</strong> 即可登录
+                                        </p>
+                                    </div>
+                                )}
 
-                                {/* Submit */}
+                                {/* Submit — FIX: stronger CTA color */}
                                 <button
                                     onClick={handleLogin}
                                     disabled={!codeSent || code.length < 4 || loading}
-                                    className="w-full py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-[14px] font-bold rounded-xl shadow-lg shadow-indigo-200/50 hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3 bg-indigo-700 hover:bg-indigo-800 text-white text-[14px] font-bold rounded-xl shadow-lg shadow-indigo-300/30 hover:shadow-xl hover:scale-[1.01] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {loading && codeSent ? (
                                         <><Loader2 size={16} className="animate-spin" /> 登录中...</>
@@ -258,16 +315,16 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
 
                         {/* Back link */}
                         <button onClick={() => setStep('intro')}
-                            className="block mx-auto mt-4 text-[12px] text-slate-400 hover:text-slate-600 transition-colors">
-                            ← 返回产品介绍
+                            className="mx-auto mt-4 text-[13px] font-medium text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full transition-all flex items-center gap-1.5">
+                            <ArrowRight size={14} className="rotate-180" /> 返回产品介绍
                         </button>
                     </div>
                 )}
 
                 {step === 'success' && loginSuccess && (
                     <div className="w-full max-w-lg text-center animate-in fade-in zoom-in-95 duration-700">
-                        <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-2xl shadow-xl shadow-slate-200/30 p-10">
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center mx-auto mb-6 ring-4 ring-white shadow-md">
+                        <div className="bg-white border border-slate-200/60 rounded-2xl shadow-xl shadow-slate-200/30 p-10">
+                            <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-6 ring-4 ring-white shadow-md">
                                 <CheckCircle2 size={36} className="text-emerald-500" />
                             </div>
                             <h2 className="text-2xl font-extrabold text-slate-900 mb-2">🎉 插件已准备就绪！</h2>
@@ -304,7 +361,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
             </div>
 
             {/* --- Bottom Footer --- */}
-            <footer className="h-12 shrink-0 flex items-center justify-center text-[11px] text-slate-400 border-t border-white/60 bg-white/30 backdrop-blur-sm gap-4">
+            <footer className="h-12 shrink-0 flex items-center justify-center text-[11px] text-slate-400 border-t border-slate-200/60 bg-white/80 gap-4">
                 <span>© 2024 IHR · NEXUS 智能招聘平台</span>
                 <span className="text-slate-300">|</span>
                 <button className="hover:text-slate-600 transition-colors">隐私政策</button>

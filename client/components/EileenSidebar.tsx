@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ViewState } from '../types';
-import { useAuth } from './AuthContext';
+import { ViewState } from '../../shared/types';
+import { useAuth } from '../contexts/AuthContext';
 import { Send, Sparkles, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X } from 'lucide-react';
 
 interface EileenSidebarProps {
@@ -62,7 +62,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         // Simulation Logic
         setTimeout(() => {
             setIsTyping(false);
-            if (text.includes('分析') || text.includes('简历') || text.includes('张三')) {
+            if (text.includes('分析') || text.includes('简历') || text.includes('赵嘉明')) {
                 triggerAnalysisFlow();
             } else if (text.includes('上传')) {
                 setMessages(prev => [...prev, { id: 'upload_' + Date.now(), sender: 'ai', type: 'text', content: '好的，请将文件拖入此处，或者点击上传窗口。我支持 PDF, Word 或图片格式的简历解析。', timestamp: Date.now() }]);
@@ -80,7 +80,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             id: 'ksq_' + Date.now(), sender: 'ai', type: 'ksq-card',
             content: '简历解析完成。已为您生成初筛方案，请确认后开始 AI 面试 👇',
             data: {
-                candidateName: '张三',
+                candidateName: '赵嘉明',
                 candidateRole: '高级前端工程师',
                 candidateExp: '5年经验',
                 ksqItems: [
@@ -108,11 +108,11 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             content: '初筛方案已确认！已为该候选人生成 AI 初筛邀约，您可以复制邀约信息发送给候选人 👇',
             data: {
                 id: newCandidateId,
-                name: '张三',
+                name: '赵嘉明',
                 role: '高级前端工程师',
                 avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&q=80',
                 inviteLink,
-                inviteText: `Hi 张三，邀请您进行岗位初步沟通。我是智能招聘助理艾琳，受招聘方委托，想与您进行一次简短的初步沟通（约15分钟），了解您的基本情况和职业意向。\n\n👉 点击开始：${inviteLink}`
+                inviteText: `Hi 赵嘉明，邀请您进行岗位初步沟通。我是智能招聘助理艾琳，受招聘方委托，想与您进行一次简短的初步沟通（约15分钟），了解您的基本情况和职业意向。\n\n👉 点击开始：${inviteLink}`
             },
             timestamp: Date.now()
         };
@@ -499,7 +499,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             {/* 4. SMART ACTION BAR — unified input + upload + contextual resume */}
             <div className="shrink-0 z-20 bg-white/60 backdrop-blur-2xl border-t border-white/40 px-3 pt-2 pb-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                 {browserContext === 'resume' ? (
-                    /* ===== Resume Page Mode: 「张三 · 交给艾琳来初面」+ 📎 ===== */
+                    /* ===== Resume Page Mode: 「赵嘉明 · 交给艾琳来初面」+ 📎 ===== */
                     <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-100/90 via-indigo-50/80 to-white/90 border-2 border-indigo-200 rounded-2xl px-3 py-2.5 animate-in slide-in-from-bottom-3 duration-500 ring-4 ring-indigo-100/40 relative overflow-hidden">
                         {/* Active pulse indicator */}
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-indigo-500 rounded-l-2xl" />
@@ -510,7 +510,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                         </div>
                         <div className="flex flex-col shrink-0">
                             <span className="text-[10px] text-indigo-500 font-bold leading-none mb-0.5">简历已识别</span>
-                            <span className="text-[13px] font-bold text-slate-900 truncate">张三</span>
+                            <span className="text-[13px] font-bold text-slate-900 truncate">赵嘉明</span>
                         </div>
                         <button
                             onClick={() => triggerAnalysisFlow()}

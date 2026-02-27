@@ -1,9 +1,9 @@
 import React from 'react';
-import { ViewState } from '../types';
-import DashboardView from './views/DashboardView';
-import CandidateMobileView from './views/CandidateMobileView';
-import InitiationView from './views/InitiationView';
-import OrderDetailView from './views/OrderDetailView';
+import { ViewState } from '../../shared/types';
+import DashboardView from '../views/DashboardView';
+import CandidateMobileView from '../views/CandidateMobileView';
+import InitiationView from '../views/InitiationView';
+import OrderDetailView from '../views/OrderDetailView';
 
 interface CanvasAreaProps {
   currentView: ViewState;
@@ -29,15 +29,15 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({ currentView, selectedCandidateI
   }
 
   if (currentView === ViewState.INITIATION) {
-      return <InitiationView onNavigate={onNavigate} />;
+    return <InitiationView onNavigate={onNavigate} />;
   }
 
   // In Dashboard state, we render the "Browser Content"
   return (
-    <DashboardView 
-        onNavigate={onNavigate} 
-        browserContext={browserContext}
-        setBrowserContext={setBrowserContext}
+    <DashboardView
+      onNavigate={onNavigate}
+      browserContext={browserContext}
+      setBrowserContext={setBrowserContext}
     />
   );
 };

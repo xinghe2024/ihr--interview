@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ViewState } from './types';
-import { AuthProvider, useAuth } from './components/AuthContext';
+import { ViewState } from '../shared/types';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import EileenSidebar from './components/EileenSidebar';
 import CanvasArea from './components/CanvasArea';
-import OrderDetailView from './components/views/OrderDetailView';
-import WelcomeView from './components/views/WelcomeView';
+import OrderDetailView from './views/OrderDetailView';
+import WelcomeView from './views/WelcomeView';
 import { Smartphone, MessageCircle } from 'lucide-react';
 
 const AppInner: React.FC = () => {

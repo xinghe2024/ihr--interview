@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ViewState, CandidateStatus, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../types';
+import { ViewState, CandidateStatus, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../shared/types';
 import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign, Search } from 'lucide-react';
-import RedPenCard from '../RedPenCard';
+import RedPenCard from '../components/RedPenCard';
 
 interface OrderDetailViewProps {
     candidateId: string | null;
@@ -48,45 +48,45 @@ const getMockCandidateContext = (id: string | null) => {
 
     // Explicit Mock Cases mapping to Dashboard IDs
     switch (id) {
-        case '1': // 赵六 - Newly created
+        case '1': // 陈思远 - Newly created
             status = CandidateStatus.PENDING_OUTREACH;
-            name = '赵六';
+            name = '陈思远';
             role = 'Java 专家';
             avatar = AVATARS['1'];
             break;
-        case '2': // 王五 - In Call
+        case '2': // 林雨晴 - In Call
             status = CandidateStatus.INTERVIEWING;
-            name = '王五';
+            name = '林雨晴';
             role = 'Java 架构师';
             avatar = AVATARS['2'];
             break;
-        case '3': // 钱七 - Analyzing
+        case '3': // 周子涵 - Analyzing
             status = CandidateStatus.ANALYZING;
-            name = '钱七';
+            name = '周子涵';
             role = '测试专家';
             avatar = AVATARS['3'];
             break;
-        case '4': // 张三 - Delivered
+        case '4': // 赵嘉明 - Delivered
             status = CandidateStatus.DELIVERED;
-            name = '张三';
+            name = '赵嘉明';
             role = '高级前端工程师';
             avatar = AVATARS['4'];
             break;
-        case '5': // 李四 - Exception
+        case '5': // 吴晓斗 - Exception
             status = CandidateStatus.EXCEPTION;
-            name = '李四';
+            name = '吴晓斗';
             role = '产品经理';
             avatar = AVATARS['5'];
             break;
         case '6': // Extra - Invited
             status = CandidateStatus.TOUCHED;
-            name = '孙九';
+            name = '姜琳';
             role = '算法工程师';
             avatar = AVATARS['6'];
             break;
         default:
             status = CandidateStatus.DELIVERED;
-            name = '张三 (演示)';
+            name = '赵嘉明 (演示)';
             role = '高级前端工程师';
             avatar = AVATARS['4'];
     }
@@ -736,7 +736,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             </div>
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs font-bold text-slate-700">{t.speaker === 'AI' ? '招聘助理艾琳' : '张三'}</span>
+                                    <span className="text-xs font-bold text-slate-700">{t.speaker === 'AI' ? '招聘助理艾琳' : '赵嘉明'}</span>
                                     <span className="text-[10px] text-slate-400 font-mono">{t.time}</span>
                                 </div>
                                 <p className={`text-sm leading-relaxed p-2 rounded-lg ${t.highlight === 'risk' ? 'bg-amber-50 text-slate-800 border border-amber-100' : 'text-slate-600 hover:bg-white/50'}`}>

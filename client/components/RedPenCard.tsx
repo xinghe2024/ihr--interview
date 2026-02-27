@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Observation, SignalType } from '../types';
+import { Observation, SignalType } from '../../shared/types';
 import { Play, Mic2, AlertTriangle, AlertOctagon, CheckCircle2, MessageSquareQuote, ChevronRight, ChevronDown, Pause } from 'lucide-react';
 
 interface RedPenCardProps {
@@ -13,41 +13,41 @@ const RedPenCard: React.FC<RedPenCardProps> = ({ data, isHighlighted = false }) 
 
   const getSignalStyle = (signal: SignalType) => {
     switch (signal) {
-      case 'CONFIDENT': return { 
-          icon: <CheckCircle2 size={13} />, 
-          bg: 'bg-white', 
-          border: 'border-emerald-200',
-          borderLeft: 'border-l-emerald-500', 
-          badge: 'bg-emerald-50 text-emerald-700',
-          label: '验证通过',
-          lightColor: 'text-emerald-600'
+      case 'CONFIDENT': return {
+        icon: <CheckCircle2 size={13} />,
+        bg: 'bg-white',
+        border: 'border-emerald-200',
+        borderLeft: 'border-l-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-700',
+        label: '验证通过',
+        lightColor: 'text-emerald-600'
       };
-      case 'HESITANT': return { 
-          icon: <AlertTriangle size={13} />, 
-          bg: 'bg-white', 
-          border: 'border-amber-200', 
-          borderLeft: 'border-l-amber-500', 
-          badge: 'bg-amber-50 text-amber-700',
-          label: '存疑 / 迟疑',
-          lightColor: 'text-amber-600'
+      case 'HESITANT': return {
+        icon: <AlertTriangle size={13} />,
+        bg: 'bg-white',
+        border: 'border-amber-200',
+        borderLeft: 'border-l-amber-500',
+        badge: 'bg-amber-50 text-amber-700',
+        label: '存疑 / 迟疑',
+        lightColor: 'text-amber-600'
       };
-      case 'CONTRADICTORY': return { 
-          icon: <AlertOctagon size={13} />, 
-          bg: 'bg-white', 
-          border: 'border-rose-200', 
-          borderLeft: 'border-l-rose-500', 
-          badge: 'bg-rose-50 text-rose-700',
-          label: '风险 / 矛盾',
-          lightColor: 'text-rose-600'
+      case 'CONTRADICTORY': return {
+        icon: <AlertOctagon size={13} />,
+        bg: 'bg-white',
+        border: 'border-rose-200',
+        borderLeft: 'border-l-rose-500',
+        badge: 'bg-rose-50 text-rose-700',
+        label: '风险 / 矛盾',
+        lightColor: 'text-rose-600'
       };
-      case 'VAGUE': return { 
-          icon: <AlertTriangle size={13} />, 
-          bg: 'bg-white', 
-          border: 'border-slate-200', 
-          borderLeft: 'border-l-slate-400', 
-          badge: 'bg-slate-100 text-slate-600',
-          label: '描述模糊',
-          lightColor: 'text-slate-500'
+      case 'VAGUE': return {
+        icon: <AlertTriangle size={13} />,
+        bg: 'bg-white',
+        border: 'border-slate-200',
+        borderLeft: 'border-l-slate-400',
+        badge: 'bg-slate-100 text-slate-600',
+        label: '描述模糊',
+        lightColor: 'text-slate-500'
       };
       default: return { icon: null, bg: 'bg-white', border: 'border-slate-200', borderLeft: 'border-l-slate-200', badge: '', label: '', lightColor: '' };
     }
@@ -57,20 +57,20 @@ const RedPenCard: React.FC<RedPenCardProps> = ({ data, isHighlighted = false }) 
 
   return (
     <div className={`group relative rounded-xl p-3 shadow-sm hover:shadow-md transition-all border border-l-[4px] cursor-pointer ${style.bg} ${style.border} ${style.borderLeft} ${isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-1 shadow-yellow-100' : ''}`}>
-      
+
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-wide">
-            {data.category}
+          {data.category}
         </span>
         <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${style.badge}`}>
-            {style.icon} {style.label}
+          {style.icon} {style.label}
         </div>
       </div>
 
       {/* Title - L2 Module Title */}
       <h4 className="text-[12px] font-bold text-slate-900 mb-1.5 leading-snug">{data.title}</h4>
-      
+
       {/* Body - L3 Content */}
       <p className="text-xs text-slate-600 leading-snug mb-2.5">
         {data.observation}

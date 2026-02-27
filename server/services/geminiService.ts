@@ -2,6 +2,7 @@
  * Gemini API 工具函数
  * 用于与 Google Gemini API 进行交互
  */
+/// <reference types="vite/client" />
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -11,7 +12,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  */
 export function getGeminiClient(): GoogleGenerativeAI {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_API_KEY || import.meta.env.GEMINI_API_KEY || import.meta.env.API_KEY;
-  
+
   if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY') {
     throw new Error('请配置 GEMINI_API_KEY 环境变量。请在 .env.local 文件中设置您的 Gemini API Key。');
   }
@@ -31,7 +32,7 @@ export async function sendMessageToGemini(
 ): Promise<string> {
   try {
     const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: 'gemini-pro',
       systemInstruction: systemPrompt || '你是一个专业的招聘助手，帮助HR分析候选人简历和进行面试沟通。'
     });
@@ -59,13 +60,13 @@ export async function sendStreamMessageToGemini(
 ): Promise<void> {
   try {
     const genAI = getGeminiClient();
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: 'gemini-pro',
       systemInstruction: systemPrompt || '你是一个专业的招聘助手，帮助HR分析候选人简历和进行面试沟通。'
     });
 
     const result = await model.generateContentStream(prompt);
-    
+
     for await (const chunk of result.stream) {
       const chunkText = chunk.text();
       onChunk(chunkText);

@@ -241,3 +241,138 @@ export interface BaselineCoverage {
   label: string;          // e.g. "薪资匹配"
   status: 'pass' | 'warning' | 'unchecked';
 }
+
+// ================================================================
+// ========== API 契约：前后端共享的请求/响应类型 ==========
+// ================================================================
+
+// ---------- 通用 ----------
+
+/** 所有 API 的统一响应包装 */
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;       // 机器可读错误码，如 'AUTH_INVALID_CODE'
+    message: string;    // 人类可读错误信息
+  };
+}
+
+/** 分页参数（请求） */
+export interface PaginationParams {
+  page?: number;        // 页码，从 1 开始，默认 1
+  pageSize?: number;    // 每页条数，默认 20
+}
+
+/** 分页信息（响应） */
+export interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  total: number;        // 总记录数
+  totalPages: number;   // 总页数
+}
+
+// ================================================================
+// ========== 阶段 1：用户认证 ==========
+// ================================================================
+
+/** POST /api/auth/send-code — 发送验证码 */
+export interface SendCodeRequest {
+  phone: string;        // 手机号，如 '13800000000'
+}
+
+/** POST /api/auth/login — 手机号 + 验证码登录 */
+export interface LoginRequest {
+  phone: string;
+  code: string;         // 短信验证码
+}
+
+export interface LoginResponse {
+  token: string;        // JWT access token
+  refreshToken: string; // 刷新 token
+  expiresIn: number;    // token 有效期（秒）
+  user: UserProfile;    // 用户信息
+}
+
+/** 用户信息（登录后前端持有） */
+export interface UserProfile {
+  id: string;
+  name: string;
+  phone: string;
+  company: string;
+  role: string;         // 如 '高级HR经理'、'招聘总监'
+  avatar?: string;
+}
+
+/** JWT Token 解码后的 payload（前端一般不直接用，但类型需对齐） */
+export interface TokenPayload {
+  userId: string;
+  phone: string;
+  companyId: string;
+  iat: number;          // issued at
+  exp: number;          // expires at
+}
+
+/** POST /api/auth/refresh — 刷新 token */
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  token: string;
+  expiresIn: number;
+}
+
+// ================================================================
+// ========== 阶段 1：候选人 CRUD ==========
+// ================================================================
+
+/** POST /api/candidates — 创建候选人 */
+export interface CreateCandidateRequest {
+  name: string;
+  phone?: string;
+  email?: string;
+  role: string;         // 应聘岗位
+  resumeFileId?: string; // 上传后的文件 ID（阶段 2 接入）
+}
+
+export interface CreateCandidateResponse {
+  candidate: Candidate;
+}
+
+/** PUT /api/candidates/:id — 更新候选人 */
+export interface UpdateCandidateRequest {
+  name?: string;
+  phone?: string;
+  email?: string;
+  role?: string;
+  status?: CandidateStatus;
+  recommendation?: 'Proceed' | 'FollowUp' | 'Hold';
+}
+
+/** GET /api/candidates — 获取候选人列表 */
+export interface ListCandidatesParams extends PaginationParams {
+  status?: CandidateStatus;                               // 按状态筛选
+  recommendation?: 'Proceed' | 'FollowUp' | 'Hold';      // 按推荐结果筛选
+  search?: string;                                          // 模糊搜索（姓名/岗位）
+  sortBy?: 'lastUpdate' | 'matchScore' | 'name';           // 排序字段
+  sortOrder?: 'asc' | 'desc';                               // 排序方向
+}
+
+export interface ListCandidatesResponse {
+  candidates: Candidate[];
+  pagination: PaginationMeta;
+}
+
+/** GET /api/candidates/:id — 获取候选人详情（含简历 + 时间线） */
+export interface CandidateDetailResponse {
+  candidate: Candidate;
+  resume?: DetailedResume;          // 解析后的结构化简历
+  timeline: TimelineEvent[];         // 全链路事件日志
+  observations?: Observation[];      // 面试报告卡片
+  ksqResults?: KSQItem[];            // KSQ 结果
+  baselineCoverage?: BaselineCoverage[];  // 基础覆盖
+}
+
+/** DELETE /api/candidates/:id — 删除候选人 */
+// 无 request body，响应使用 ApiResponse<{ deleted: true }>
