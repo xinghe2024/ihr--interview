@@ -11,9 +11,10 @@ interface CanvasAreaProps {
   onNavigate: (view: ViewState, id?: string) => void;
   browserContext: 'empty' | 'resume';
   setBrowserContext: (ctx: 'empty' | 'resume') => void;
+  onUnreadCountChange?: (count: number) => void;
 }
 
-const CanvasArea: React.FC<CanvasAreaProps> = ({ currentView, selectedCandidateId, onNavigate, browserContext, setBrowserContext }) => {
+const CanvasArea: React.FC<CanvasAreaProps> = ({ currentView, selectedCandidateId, onNavigate, browserContext, setBrowserContext, onUnreadCountChange }) => {
   // Full Screen Overlays
   if (currentView === ViewState.CANDIDATE_MOBILE) {
     return <CandidateMobileView onExit={() => onNavigate(ViewState.DASHBOARD)} />;
@@ -38,6 +39,7 @@ const CanvasArea: React.FC<CanvasAreaProps> = ({ currentView, selectedCandidateI
       onNavigate={onNavigate}
       browserContext={browserContext}
       setBrowserContext={setBrowserContext}
+      onUnreadCountChange={onUnreadCountChange}
     />
   );
 };

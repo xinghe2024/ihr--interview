@@ -10,13 +10,18 @@ export enum ViewState {
 
 export type SignalType = 'CONFIDENT' | 'HESITANT' | 'CONTRADICTORY' | 'VAGUE';
 
-// 🆕 Event Codes for State Machine
+// 🆕 Event Codes for State Machine — 覆盖完整业务链路
 export enum EventCode {
-  LANDING_OPENED = 'LANDING_OPENED',      // H5落地页打开
-  CALL_ENDED = 'CALL_ENDED',              // 通话结束
-  ANALYSIS_STARTED = 'ANALYSIS_STARTED',  // 分析开始
-  REPORT_READY = 'REPORT_READY',           // 报告就绪
-  REPORT_DELIVERED = 'REPORT_DELIVERED'   // 报告交付
+  TASK_CREATED = 'TASK_CREATED',                // 任务创建
+  RESUME_PARSED = 'RESUME_PARSED',              // 简历解析完成
+  INVITE_COPIED = 'INVITE_COPIED',              // HR 已复制邀约链接
+  LANDING_OPENED = 'LANDING_OPENED',            // 候选人打开链接
+  INTERVIEW_STARTED = 'INTERVIEW_STARTED',      // 面试开始（通话建立）
+  INTERVIEW_ENDED = 'INTERVIEW_ENDED',          // 面试结束（通话结束）
+  INTERVIEW_EXCEPTION = 'INTERVIEW_EXCEPTION',  // 面试异常中断
+  ANALYSIS_STARTED = 'ANALYSIS_STARTED',        // 分析报告生成中
+  REPORT_READY = 'REPORT_READY',                // 报告就绪
+  REPORT_DELIVERED = 'REPORT_DELIVERED',         // 报告已交付
 }
 
 // 🆕 Strict B2B Order Workflow Statuses
@@ -24,10 +29,76 @@ export enum CandidateStatus {
   PENDING_OUTREACH = 'PENDING_OUTREACH', // 待触达
   TOUCHED = 'TOUCHED',                    // 已触达（LANDING_OPENED 事件触发）
   INTERVIEWING = 'INTERVIEWING',         // 正在面试
-  ANALYZING = 'ANALYZING',               // 分析中（CALL_ENDED 之后、REPORT_DELIVERED 之前）
+  ANALYZING = 'ANALYZING',               // 分析中（INTERVIEW_ENDED 之后、REPORT_DELIVERED 之前）
   DELIVERED = 'DELIVERED',               // 已交付（REPORT_DELIVERED + evidence_playable=true）
   EXCEPTION = 'EXCEPTION'                // 异常/超时
 }
+
+// ─── 通知 / 新动态 ───────────────────────────────
+
+export type CandidateEventType =
+  | 'report_delivered'       // 报告已交付
+  | 'candidate_opened'       // 候选人已打开链接
+  | 'interview_completed'    // 面试已完成
+  | 'interview_exception'    // 面试异常
+  | 'status_changed';        // 状态流转
+
+export interface CandidateUpdateEvent {
+  id: string;
+  candidateId: string;
+  candidateName: string;
+  candidateRole: string;
+  eventType: CandidateEventType;
+  message: string;                    // "初筛报告已交付 — 建议面试"
+  severity: 'success' | 'info' | 'error';
+  isRead: boolean;
+  createdAt: string;                  // ISO 8601
+}
+
+/** GET /api/notifications/summary — 通知摘要 */
+export interface NotificationSummaryResponse {
+  unreadCount: number;
+  events: CandidateUpdateEvent[];
+}
+
+// ─── 对话 Agent API ─────────────────────────────
+
+/** POST /api/chat/messages — 发送消息给 Agent */
+export interface ChatMessageRequest {
+  content: string;
+  browserContext?: {
+    currentUrl?: string;
+    pageTitle?: string;
+    selectedText?: string;            // HR 选中的简历文本
+  };
+}
+
+export interface ChatAgentAction {
+  type: 'navigate' | 'create_interview' | 'show_candidate' | 'show_report';
+  payload: Record<string, unknown>;
+}
+
+export interface ChatMessageResponse {
+  userMessageId: string;
+  aiReply: {
+    id: string;
+    content: string;
+    actions?: ChatAgentAction[];
+  };
+}
+
+/** GET /api/chat/messages — 对话历史 */
+export interface ChatHistoryResponse {
+  messages: Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    actions?: ChatAgentAction[];
+    createdAt: string;
+  }>;
+}
+
+// ─────────────────────────────────────────────────
 
 export interface TimelineEvent {
   time: string;
@@ -376,3 +447,159 @@ export interface CandidateDetailResponse {
 
 /** DELETE /api/candidates/:id — 删除候选人 */
 // 无 request body，响应使用 ApiResponse<{ deleted: true }>
+
+// ================================================================
+// ========== 阶段 2：候选人面试（C 端 H5） ==========
+// ================================================================
+
+/**
+ * 面试会话模式
+ * - TEXT:  文字对话（MVP，纯 HTTP）
+ * - VOICE: 语音对话（后续，WebRTC + STT/TTS）
+ */
+export type InterviewChannelType = 'TEXT' | 'VOICE';
+
+/**
+ * 面试会话状态（服务端维护）
+ */
+export enum InterviewSessionStatus {
+  CREATED = 'CREATED',             // 已创建，候选人尚未打开
+  LANDING_OPENED = 'LANDING_OPENED', // 候选人已打开 H5 落地页
+  IN_PROGRESS = 'IN_PROGRESS',     // 面试进行中
+  COMPLETED = 'COMPLETED',         // 正常完成
+  ABANDONED = 'ABANDONED',         // 候选人中途放弃
+  EXPIRED = 'EXPIRED',             // 链接超时（48h）
+}
+
+// ---------- 面试邀请（HR 侧触发） ----------
+
+/** POST /api/interviews — HR 创建面试邀请 */
+export interface CreateInterviewRequest {
+  candidateId: string;              // 候选人 ID
+  channel: InterviewChannelType;    // 面试渠道
+  ksqItems: KSQItem[];              // 关键考察问题
+  baselineItems?: BaselineCoverage[]; // 基础覆盖项
+  expiresInHours?: number;          // 链接有效期（默认 48h）
+}
+
+export interface CreateInterviewResponse {
+  sessionId: string;                // 面试会话 ID
+  inviteUrl: string;                // 候选人 H5 链接，如 https://app.ailin.ai/i/{sessionId}
+  inviteText: string;               // 生成的邀约文案（可直接复制发送）
+  expiresAt: string;                // 过期时间 ISO 8601
+}
+
+// ---------- 候选人 H5 端 ----------
+
+/** GET /api/interviews/{sessionId}/landing — 候选人打开 H5 链接 */
+export interface InterviewLandingResponse {
+  sessionId: string;
+  candidateName: string;            // 候选人姓名（用于页面称呼）
+  recruiterTitle: string;           // 委托人称呼，如 "李先生"
+  positionTitle: string;            // 岗位名称
+  companyAlias?: string;            // 公司别名（可选，保护隐私）
+  channel: InterviewChannelType;
+  estimatedMinutes: number;         // 预计时长（分钟）
+  status: InterviewSessionStatus;
+  expiresAt: string;
+}
+
+/** POST /api/interviews/{sessionId}/start — 候选人点击"开始对话" */
+export interface StartInterviewRequest {
+  channel: InterviewChannelType;    // 候选人实际选择的渠道（可能与创建时不同）
+}
+
+export interface StartInterviewResponse {
+  /** 文字模式：AI 的第一条消息 */
+  firstMessage?: string;
+  /** 语音模式：WebRTC 房间信息 */
+  rtcRoomId?: string;
+  rtcToken?: string;
+}
+
+// ---------- 文字面试：消息交互（MVP 核心） ----------
+
+/**
+ * 面试消息角色
+ * - ai:        AI 面试官
+ * - candidate: 候选人
+ * - system:    系统消息（如超时提醒）
+ */
+export type InterviewMessageRole = 'ai' | 'candidate' | 'system';
+
+export interface InterviewMessage {
+  id: string;
+  sessionId: string;
+  role: InterviewMessageRole;
+  content: string;
+  timestamp: string;                // ISO 8601
+  /** AI 消息可携带当前考察维度，前端可展示 */
+  topic?: string;                   // 如 "React 项目经验深度"
+}
+
+/** POST /api/interviews/{sessionId}/messages — 候选人发送一条消息 */
+export interface SendMessageRequest {
+  content: string;
+}
+
+export interface SendMessageResponse {
+  /** 候选人消息的服务端 ID */
+  candidateMessageId: string;
+  /** AI 回复（同步返回，SSE 流式返回时此字段为空） */
+  aiReply?: InterviewMessage;
+  /** 面试是否结束（AI 判断最后一轮时返回 true） */
+  isCompleted?: boolean;
+}
+
+/** GET /api/interviews/{sessionId}/messages — 获取历史消息（断线重连） */
+export interface ListMessagesResponse {
+  messages: InterviewMessage[];
+  isCompleted: boolean;
+  elapsedSeconds: number;           // 已用时（秒）
+}
+
+// ---------- 语音面试：WebRTC 信令（后续阶段） ----------
+
+/** POST /api/interviews/{sessionId}/rtc/token — 获取/刷新 RTC token */
+export interface RtcTokenResponse {
+  rtcRoomId: string;
+  rtcToken: string;
+  rtcProvider: 'livekit' | 'agora' | 'daily';  // 允许后端切换供应商
+  iceServers?: Array<{
+    urls: string[];
+    username?: string;
+    credential?: string;
+  }>;
+}
+
+// ---------- 面试结束 & 结果 ----------
+
+/** POST /api/interviews/{sessionId}/end — 主动结束面试 */
+export interface EndInterviewRequest {
+  reason: 'completed' | 'candidate_quit' | 'timeout' | 'error';
+}
+
+export interface EndInterviewResponse {
+  sessionId: string;
+  status: InterviewSessionStatus;
+  summary: InterviewSummary;
+}
+
+/** 面试摘要（结束后返回给候选人 + HR） */
+export interface InterviewSummary {
+  totalDurationSeconds: number;
+  topicsCovered: number;            // 考察话题数
+  questionsAnswered: number;        // 已作答数
+  completionRate: number;           // 完成率 0~1
+}
+
+// ---------- Webhook / 事件回调（通知 HR 侧） ----------
+
+/** 面试状态变更事件（推送给 HR 侧系统） */
+export interface InterviewStatusEvent {
+  eventType: 'interview.started' | 'interview.completed' | 'interview.abandoned' | 'interview.expired';
+  sessionId: string;
+  candidateId: string;
+  timestamp: string;
+  summary?: InterviewSummary;       // completed 时携带
+}

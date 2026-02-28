@@ -61,11 +61,11 @@ const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ candidateId, onNa
             { time: '14:35', title: '通话异常中断', detail: '原因：候选人主动挂断', type: 'error' }
         ] : []),
         ...(status === CandidateStatus.ANALYZING ? [
-            { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒 (CALL_ENDED)', eventCode: EventCode.CALL_ENDED },
+            { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒 (CALL_ENDED)', eventCode: EventCode.INTERVIEW_ENDED },
             { time: '14:46', title: '分析开始', detail: '正在进行语音转写与意图识别... (ANALYSIS_STARTED)', eventCode: EventCode.ANALYSIS_STARTED }
         ] : []),
         ...(status === CandidateStatus.DELIVERED ? [
-            { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒 (CALL_ENDED)', eventCode: EventCode.CALL_ENDED },
+            { time: '14:45', title: '通话结束', detail: '通话时长 14分20秒 (CALL_ENDED)', eventCode: EventCode.INTERVIEW_ENDED },
             { time: '14:46', title: '分析开始', detail: '正在进行语音转写与意图识别... (ANALYSIS_STARTED)', eventCode: EventCode.ANALYSIS_STARTED },
             { time: '14:48', title: '报告就绪', detail: 'AI分析报告已生成 (REPORT_READY)', eventCode: EventCode.REPORT_READY },
             { time: '14:49', title: '报告交付', detail: '报告已交付，证据可播放 (REPORT_DELIVERED)', eventCode: EventCode.REPORT_DELIVERED }

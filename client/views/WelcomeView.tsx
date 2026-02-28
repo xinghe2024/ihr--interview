@@ -51,7 +51,7 @@ const AnimatedVoiceInterview = () => {
             {/* 状态文字 */}
             <p className="text-indigo-200/80 text-[13px] font-medium mb-12 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                艾琳面试助理正在提问
+                Ailin 正在提问
             </p>
 
             {/* CSS 声电动效 */}
@@ -359,8 +359,8 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
 
     const Logo = () => (
         <div className="flex items-center gap-0">
-            <img src={logoImg} alt="艾琳 AI" className="w-[71px] h-[71px] object-contain" />
-            <span className="text-xl font-bold text-slate-900 tracking-tight">艾琳 AI</span>
+            <img src={logoImg} alt="Ailin" className="w-[71px] h-[71px] object-contain" />
+            <span className="text-xl font-bold text-slate-900 tracking-tight">Ailin</span>
         </div>
     );
 
@@ -488,7 +488,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                                 {/* 原始静态图备份，暂时隐藏 */}
                                 {/* <img
                                     src={heroDashboardImg}
-                                    alt="艾琳产品界面"
+                                    alt="Ailin 产品界面"
                                     className="w-full h-auto rounded-xl shadow-2xl border border-slate-200/60 object-cover bg-slate-50"
                                 /> */}
                             </div>
@@ -639,7 +639,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                             </div>
                             <h2 className="text-2xl font-bold text-slate-900 mb-2">账号已就绪</h2>
                             <p className="text-[14px] text-slate-500 mb-8 leading-relaxed">
-                                您已成功激活艾琳 AI。<br />前往工作台开始使用吧。
+                                您已成功激活 Ailin。<br />前往工作台开始使用吧。
                             </p>
 
                             <div className="grid grid-cols-3 gap-4 mb-8 border border-slate-100 rounded-xl p-4 bg-slate-50/50">

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ViewState, CandidateStatus, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../shared/types';
+import { ViewState, CandidateStatus, EventCode, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../shared/types';
 import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign, Search } from 'lucide-react';
 import RedPenCard from '../components/RedPenCard';
 import { useNotification } from '../contexts/NotificationContext';
+import eileenAvatarImg from '../assets/hr.png';
 
 interface OrderDetailViewProps {
     candidateId: string | null;
@@ -10,23 +11,42 @@ interface OrderDetailViewProps {
     defaultTab?: 'ANALYSIS' | 'TIMELINE' | 'RECORDING';
 }
 
-const EILEEN_AVATAR = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&q=80";
+const EILEEN_AVATAR = eileenAvatarImg;
 
 // --- 1. CONFIGURATION & TYPES ---
 
 const STEPS = [
-    { id: CandidateStatus.PENDING_OUTREACH, label: '待触达', icon: Clock },
-    { id: CandidateStatus.TOUCHED, label: '已邀请', icon: Mail },
-    { id: CandidateStatus.INTERVIEWING, label: '正在面试', icon: Phone },
-    { id: CandidateStatus.ANALYZING, label: '分析中', icon: FileText },
-    { id: CandidateStatus.DELIVERED, label: '已交付', icon: CheckCircle2 },
+    { id: 'CREATED', label: '任务创建', icon: FileText },
+    { id: 'PROCESSING', label: '进行中', icon: Loader2 },
+    { id: 'DELIVERED', label: '已交付', icon: CheckCircle2 },
 ];
+
+// 将 CandidateStatus 映射到 3 步进度条的索引
+const STATUS_TO_STEP: Record<CandidateStatus, number> = {
+    [CandidateStatus.PENDING_OUTREACH]: 0,
+    [CandidateStatus.TOUCHED]: 1,
+    [CandidateStatus.INTERVIEWING]: 1,
+    [CandidateStatus.ANALYZING]: 1,
+    [CandidateStatus.DELIVERED]: 2,
+    [CandidateStatus.EXCEPTION]: 1,
+};
+
+// 进度条下方的阶段描述
+const STATUS_DESCRIPTIONS: Record<CandidateStatus, string> = {
+    [CandidateStatus.PENDING_OUTREACH]: '简历已解析，等待 HR 发送邀约',
+    [CandidateStatus.TOUCHED]: '候选人已打开面试链接，等待开始对话',
+    [CandidateStatus.INTERVIEWING]: 'AI 正在与候选人对话中',
+    [CandidateStatus.ANALYZING]: '通话已结束，正在生成评估报告...',
+    [CandidateStatus.DELIVERED]: '报告已交付，请查看分析结果',
+    [CandidateStatus.EXCEPTION]: '任务异常，建议人工介入',
+};
 
 interface TimelineLog {
     time: string;
     title: string;
     detail: string;
     type?: 'default' | 'error' | 'success';
+    eventCode?: EventCode;
 }
 
 // --- 2. ROBUST MOCK DATA ENGINE ---
@@ -92,32 +112,32 @@ const getMockCandidateContext = (id: string | null) => {
             avatar = AVATARS['4'];
     }
 
-    // Dynamic Timeline Logs Generation
+    // Dynamic Timeline Logs Generation — aligned with EventCode
     const logs: TimelineLog[] = [
-        { time: '14:00', title: '任务创建', detail: '艾琳 发起自动初筛任务', type: 'default' },
-        { time: '14:02', title: '简历解析完成', detail: '提取关键技能与工作经历', type: 'default' },
+        { time: '14:00', title: '任务创建', detail: 'HR 创建初筛任务，简历已上传', eventCode: EventCode.TASK_CREATED },
+        { time: '14:02', title: '简历解析完成', detail: '已提取关键技能，Ailin 生成考察问题建议', eventCode: EventCode.RESUME_PARSED },
     ];
 
     if (status !== CandidateStatus.PENDING_OUTREACH) {
-        logs.push({ time: '14:05', title: '触达短信已送达', detail: '发送至候选人手机，包含通话链接', type: 'default' });
+        logs.push({ time: '14:05', title: 'HR 已复制邀约链接', detail: '考察问题已确认，邀约链接已生成并复制', eventCode: EventCode.INVITE_COPIED });
     }
 
     if ([CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING, CandidateStatus.DELIVERED, CandidateStatus.EXCEPTION].includes(status)) {
-        logs.push({ time: '14:30', title: '候选人点击链接', detail: '设备检测通过 (iOS / Safari)', type: 'default' });
-        logs.push({ time: '14:31', title: '通话建立', detail: '双方已接入，AI 开始对话', type: 'default' });
+        logs.push({ time: '14:30', title: '候选人打开链接', detail: '设备检测通过 (iOS / Safari)', eventCode: EventCode.LANDING_OPENED });
+        logs.push({ time: '14:31', title: '面试开始', detail: '双方已接入，AI 开始对话', eventCode: EventCode.INTERVIEW_STARTED });
     }
 
     if (status === CandidateStatus.EXCEPTION) {
-        logs.push({ time: '14:35', title: '通话异常中断', detail: '检测到候选人主动挂断或信号丢失 (连续3次)', type: 'error' });
+        logs.push({ time: '14:35', title: '面试异常中断', detail: '检测到候选人主动挂断或信号丢失', type: 'error', eventCode: EventCode.INTERVIEW_EXCEPTION });
     }
 
     if ([CandidateStatus.ANALYZING, CandidateStatus.DELIVERED].includes(status)) {
-        logs.push({ time: '14:45', title: '通话结束', detail: '通话时长 14分20秒', type: 'default' });
-        logs.push({ time: '14:46', title: '生成分析报告中', detail: '正在进行语音转写与意图识别...', type: 'default' });
+        logs.push({ time: '14:45', title: '面试结束', detail: '通话时长 14 分 20 秒', eventCode: EventCode.INTERVIEW_ENDED });
+        logs.push({ time: '14:46', title: '生成分析报告中', detail: '正在进行语音转写与意图识别...', eventCode: EventCode.ANALYSIS_STARTED });
     }
 
     if (status === CandidateStatus.DELIVERED) {
-        logs.push({ time: '14:48', title: 'AI 报告已生成', detail: '包含 3 个关键风险点提示，已发送通知', type: 'success' });
+        logs.push({ time: '14:48', title: '报告已交付', detail: '包含 3 个关键风险点提示，已发送通知', type: 'success', eventCode: EventCode.REPORT_DELIVERED });
     }
 
     return { status, name, role, logs, avatar };
@@ -171,15 +191,8 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
         }, 1000);
     };
 
-    // Progress Bar logic
-    const getCurrentStepIndex = () => {
-        let index = STEPS.findIndex(s => s.id === status);
-        if (status === CandidateStatus.EXCEPTION) return 2;
-        if (index === -1) return 0;
-        return index;
-    };
-
-    const currentStepIndex = getCurrentStepIndex();
+    // Progress Bar logic — use STATUS_TO_STEP mapping
+    const currentStepIndex = STATUS_TO_STEP[status] ?? 0;
     const progressPercentage = (currentStepIndex / (STEPS.length - 1)) * 100;
 
     // Mock Resume Data — expanded with PRD 5-segment fields
@@ -232,7 +245,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     ];
 
     const transcript = [
-        { speaker: 'AI', text: '您好，这里是字节跳动招聘组的 AI 助理艾琳。请问现在方便大概花 10 分钟聊聊吗？', time: '00:05' },
+        { speaker: 'AI', text: '您好，这里是字节跳动招聘组的 AI 助理 Ailin。请问现在方便大概花 10 分钟聊聊吗？', time: '00:05' },
         { speaker: 'Candidate', text: '嗯，方便的，您请说。', time: '00:12' },
         { speaker: 'AI', text: '好的。我看到您简历里提到了 React 18 的升级经历。能具体讲讲在处理并发更新时，遇到了哪些棘手的问题吗？', time: '00:18' },
         { speaker: 'Candidate', text: '呃...主要是当时...那个业务线调整了嘛，然后...我们也换了 Leader... 其实技术上主要是调度器那块...', time: '00:35', highlight: 'risk' },
@@ -700,7 +713,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                                     icon = <AlertTriangle size={18} />;
                                 } else if (isCurrent) {
                                     circleClass = "bg-indigo-600 border-indigo-600 text-white ring-4 ring-indigo-100";
-                                    if (step.id === CandidateStatus.INTERVIEWING || step.id === CandidateStatus.ANALYZING) circleClass += " animate-pulse";
+                                    if (step.id === 'PROCESSING') circleClass += " animate-pulse";
                                     labelClass = "text-indigo-600 font-bold";
                                 } else if (isCompleted) {
                                     circleClass = "bg-indigo-600 border-indigo-600 text-white";
@@ -716,6 +729,11 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                                     </div>
                                 )
                             })}
+                        </div>
+
+                        {/* --- STAGE DESCRIPTION --- */}
+                        <div className={`text-center text-sm font-medium mb-12 ${status === CandidateStatus.EXCEPTION ? 'text-rose-600' : 'text-slate-500'}`}>
+                            {STATUS_DESCRIPTIONS[status]}
                         </div>
 
                         {/* --- TIMELINE LOGS --- */}
@@ -766,7 +784,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             {status !== CandidateStatus.DELIVERED && status !== CandidateStatus.EXCEPTION && (
                                 <div className="relative">
                                     <div className="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-slate-200 animate-pulse"></div>
-                                    <span className="text-xs text-slate-400 italic pl-1">艾琳 正在执行下一步操作...</span>
+                                    <span className="text-xs text-slate-400 italic pl-1">Ailin 正在执行下一步操作...</span>
                                 </div>
                             )}
                         </div>
@@ -793,7 +811,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             </div>
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs font-bold text-slate-700">{t.speaker === 'AI' ? '招聘助理艾琳' : '赵嘉明'}</span>
+                                    <span className="text-xs font-bold text-slate-700">{t.speaker === 'AI' ? '招聘助理 Ailin' : '赵嘉明'}</span>
                                     <span className="text-[10px] text-slate-400 font-mono">{t.time}</span>
                                 </div>
                                 <p className={`text-sm leading-relaxed p-2 rounded-lg ${t.highlight === 'risk' ? 'bg-amber-50 text-slate-800 border border-amber-100' : 'text-slate-600 hover:bg-white/50'}`}>
@@ -841,7 +859,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                         <CheckCircle2 className="text-emerald-400" size={20} />
                         <div>
                             <div className="font-bold text-sm">已通过初筛</div>
-                            <div className="text-xs text-slate-300">艾琳已自动发送面试邀请邮件。</div>
+                            <div className="text-xs text-slate-300">Ailin 已自动发送面试邀请邮件。</div>
                         </div>
                     </div>
                 )}

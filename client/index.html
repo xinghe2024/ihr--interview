@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>艾琳 · AI 招聘助理</title>
+    <title>Ailin · AI 招聘助理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -36,8 +36,13 @@
                         'aurora': 'aurora 20s ease infinite alternate',
                         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'gradient-x': 'gradient-x 3s ease infinite',
+                        'fadeIn': 'fadeIn 0.4s ease-out',
                     },
                     keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(-8px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
                         float: {
                             '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
                             '50%': { transform: 'translateY(-15px) rotate(1deg)' },

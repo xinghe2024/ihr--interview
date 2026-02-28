@@ -15,6 +15,7 @@ const AppInner: React.FC = () => {
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [browserContext, setBrowserContext] = useState<'empty' | 'resume'>('empty');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const handleNavigate = (view: ViewState, candidateId?: string) => {
     setCurrentView(view);
@@ -74,6 +75,7 @@ const AppInner: React.FC = () => {
           onNavigate={handleNavigate}
           browserContext={browserContext}
           setBrowserContext={setBrowserContext}
+          onUnreadCountChange={setUnreadCount}
         />
       </div>
 
@@ -82,10 +84,16 @@ const AppInner: React.FC = () => {
         <button
           onClick={() => setIsSidebarOpen(true)}
           className="fixed right-6 bottom-6 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-300/40 hover:shadow-2xl hover:scale-110 transition-all flex items-center justify-center group"
-          title="唤起艾琳"
+          title="唤起 Ailin"
         >
           <MessageCircle size={22} className="group-hover:scale-110 transition-transform" />
-          <span className="absolute top-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
+          {unreadCount > 0 ? (
+            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm animate-bounce">
+              {unreadCount}
+            </span>
+          ) : (
+            <span className="absolute top-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white shadow-sm animate-pulse"></span>
+          )}
         </button>
       )}
 
@@ -97,6 +105,7 @@ const AppInner: React.FC = () => {
           browserContext={browserContext}
           onLogout={logout}
           onClose={() => setIsSidebarOpen(false)}
+          unreadCount={unreadCount}
         />
       </div>
 

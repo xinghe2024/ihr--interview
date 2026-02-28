@@ -10,6 +10,7 @@ interface EileenSidebarProps {
     browserContext: 'empty' | 'resume';
     onLogout?: () => void;
     onClose?: () => void;
+    unreadCount?: number;
 }
 
 type MessageType = 'text' | 'invitation-card' | 'result-card' | 'ksq-card';
@@ -23,9 +24,9 @@ interface Message {
     timestamp: number;
 }
 
-const EILEEN_AVATAR = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&h=200&fit=crop&q=80";
+import eileenAvatarImg from '../assets/hr.png';
 
-const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext, onLogout, onClose }) => {
+const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext, onLogout, onClose, unreadCount = 0 }) => {
     const { user } = useAuth();
     const { addToast } = useNotification();
     const [inputValue, setInputValue] = useState('');
@@ -115,7 +116,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                 role: '高级前端工程师',
                 avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&q=80',
                 inviteLink,
-                inviteText: `Hi 赵嘉明，邀请您进行岗位初步沟通。我是智能招聘助理艾琳，受招聘方委托，想与您进行一次简短的初步沟通（约15分钟），了解您的基本情况和职业意向。\n\n👉 点击开始：${inviteLink}`
+                inviteText: `Hi 赵嘉明，邀请您进行岗位初步沟通。我是智能招聘助理 Ailin，受招聘方委托，想与您进行一次简短的初步沟通（约15分钟），了解您的基本情况和职业意向。\n\n👉 点击开始：${inviteLink}`
             },
             timestamp: Date.now()
         };
@@ -143,7 +144,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                 <div className="mb-4 mx-2">
                     <button onClick={() => setIntroCollapsed(false)}
                         className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[12px] font-bold text-indigo-600 hover:bg-indigo-100 transition-colors w-full">
-                        <Sparkles size={14} /> 我是艾琳，您的 AI 招聘助理 — 点击了解更多
+                        <Sparkles size={14} /> 我是 Ailin，您的 AI 招聘助理 — 点击了解更多
                     </button>
                 </div>
             );
@@ -159,7 +160,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                         <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white">
                             <Sparkles size={18} />
                         </div>
-                        <h3 className="font-bold text-slate-800 text-[17px]">我是您的 AI 招聘助理 - 艾琳</h3>
+                        <h3 className="font-bold text-slate-800 text-[17px]">我是您的 AI 招聘助理 - Ailin</h3>
                     </div>
                     <p className="text-[14px] text-slate-600 leading-relaxed mb-5 font-medium">
                         不要让我只做一个聊天机器人，请把我当做您的专业下属。我可以全权负责：
@@ -381,34 +382,33 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             <div className="shrink-0 h-16 px-5 z-20 flex justify-between items-center relative border-b border-white/30 bg-white/40 backdrop-blur-xl shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="relative group cursor-pointer">
-                        {/* Glowing Avatar */}
-                        <div className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-tr from-rose-300 via-indigo-400 to-cyan-300 shadow-glow hover:scale-105 transition-transform">
-                            <img src={EILEEN_AVATAR} className="w-full h-full rounded-full object-cover border-2 border-white/80" alt="Eileen Avatar" />
+                        <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-indigo-100 p-0.5 bg-white">
+                            <img src={eileenAvatarImg} className="w-full h-full object-cover rounded-full" alt="Ailin Avatar" />
                         </div>
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-md animate-pulse"></div>
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex flex-col">
-                        <h1 className="font-bold text-slate-900 text-[16px] leading-tight">艾琳 Ailin</h1>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="flex gap-0.5">
-                                <span className="w-0.5 h-2 bg-indigo-500 rounded-full animate-bounce"></span>
-                                <span className="w-0.5 h-3 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.1s]"></span>
-                                <span className="w-0.5 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                            </span>
-                            <span className="text-xs font-bold text-indigo-600">AI Online</span>
-                        </div>
+                        <h1 className="font-bold text-slate-900 text-[16px] leading-tight">Ailin</h1>
+                        <span className="text-xs text-slate-400 mt-0.5">随时为您服务</span>
                     </div>
                 </div>
 
                 {/* Header Actions */}
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => onNavigate(ViewState.DASHBOARD)}
-                        className="p-2.5 bg-white hover:bg-slate-50 text-indigo-700 rounded-lg border border-slate-200 shadow-sm transition-all hover:shadow-md"
-                        title="查看工作进度"
-                    >
-                        <LayoutGrid size={18} />
-                    </button>
+                    <div className="relative">
+                        <button
+                            onClick={() => onNavigate(ViewState.DASHBOARD)}
+                            className="p-2.5 bg-white hover:bg-slate-50 text-indigo-700 rounded-lg border border-slate-200 shadow-sm transition-all hover:shadow-md"
+                            title="查看工作进度"
+                        >
+                            <LayoutGrid size={18} />
+                        </button>
+                        {unreadCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm">
+                                {unreadCount}
+                            </span>
+                        )}
+                    </div>
                     {/* ⋯ Three-dot menu */}
                     <div className="relative" ref={menuRef}>
                         <button
@@ -518,7 +518,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             {/* 4. SMART ACTION BAR — unified input + upload + contextual resume */}
             <div className="shrink-0 z-20 bg-white/60 backdrop-blur-2xl border-t border-white/40 px-3 pt-2 pb-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                 {browserContext === 'resume' ? (
-                    /* ===== Resume Page Mode: 「赵嘉明 · 交给艾琳来初面」+ 📎 ===== */
+                    /* ===== Resume Page Mode: 「赵嘉明 · 交给 Ailin 来初面」+ 📎 ===== */
                     <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-100/90 via-indigo-50/80 to-white/90 border-2 border-indigo-200 rounded-2xl px-3 py-2.5 animate-in slide-in-from-bottom-3 duration-500 ring-4 ring-indigo-100/40 relative overflow-hidden">
                         {/* Active pulse indicator */}
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-indigo-500 rounded-l-2xl" />
@@ -535,7 +535,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                             onClick={() => triggerAnalysisFlow()}
                             className="ml-auto flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-bold rounded-xl shadow-md shadow-indigo-200 transition-all hover:shadow-lg hover:scale-[1.02] whitespace-nowrap"
                         >
-                            <ExternalLink size={13} /> 交给艾琳来初面
+                            <ExternalLink size={13} /> 交给 Ailin 来初面
                         </button>
                         <button
                             onClick={() => handleSendMessage('上传简历')}
