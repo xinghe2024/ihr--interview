@@ -13,6 +13,16 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       // 3000 被占用时自动顺延到 3001/3002...
       strictPort: false,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/health': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
     },
     // 构建输出到项目根目录的 dist/
     build: {

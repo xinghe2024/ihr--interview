@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>艾琳 AI 招聘助理</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f8f9fa;
+      color: #1a1a2e;
+    }
+    .header {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      padding: 20px 16px;
+      text-align: center;
+    }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+    .content { padding: 16px; }
+
+    /* 状态卡片 */
+    .status-card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .status-row + .status-row { margin-top: 8px; }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.green { background: #22c55e; }
+    .dot.red { background: #ef4444; }
+    .dot.yellow { background: #f59e0b; }
+
+    /* 用户信息 */
+    .user-info {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .user-info .name { font-size: 15px; font-weight: 600; color: #1a1a2e; }
+    .user-info .detail { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+    /* 按钮 */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+    }
+    .btn-secondary {
+      background: white;
+      color: #6366f1;
+      border: 1px solid #e2e8f0;
+      margin-top: 8px;
+    }
+    .btn-danger {
+      background: white;
+      color: #ef4444;
+      border: 1px solid #fecaca;
+      margin-top: 8px;
+    }
+
+    /* 加载 */
+    .loading { text-align: center; padding: 32px; color: #94a3b8; font-size: 13px; }
+
+    /* 隐藏 */
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>艾琳 AI 招聘助理</h1>
+    <p>IHR-NEXUS Chrome Extension</p>
+  </div>
+
+  <div class="content">
+    <!-- 加载状态 -->
+    <div id="loading" class="loading">检测登录状态...</div>
+
+    <!-- 未登录智联 -->
+    <div id="no-zp" class="hidden">
+      <div class="status-card">
+        <div class="status-row">
+          <span class="dot red"></span>
+          <span>未检测到智联招聘登录态</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-goto-zp">前往智联招聘登录</button>
+    </div>
+
+    <!-- 有智联 cookie 但未连接 NEXUS -->
+    <div id="zp-not-linked" class="hidden">
+      <div class="status-card">
+        <div class="status-row">
+          <span class="dot green"></span>
+          <span>已检测到智联招聘登录态</span>
+        </div>
+        <div class="status-row">
+          <span class="dot yellow"></span>
+          <span>尚未授权连接艾琳</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-connect">授权连接</button>
+    </div>
+
+    <!-- 已登录 -->
+    <div id="logged-in" class="hidden">
+      <div class="status-card">
+        <div class="status-row">
+          <span class="dot green"></span>
+          <span>已连接艾琳</span>
+        </div>
+      </div>
+      <div class="user-info">
+        <div class="name" id="user-name"></div>
+        <div class="detail" id="user-detail"></div>
+      </div>
+      <button class="btn btn-secondary" id="btn-sidepanel">打开侧边栏</button>
+      <button class="btn btn-danger" id="btn-logout">断开连接</button>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

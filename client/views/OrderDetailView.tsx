@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ViewState, CandidateStatus, EventCode, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../shared/types';
+import type { CandidateDetailResponse, TimelineEvent } from '../../shared/types';
 import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign, Search } from 'lucide-react';
 import RedPenCard from '../components/RedPenCard';
 import { useNotification } from '../contexts/NotificationContext';
+import { candidates as candidatesApi } from '../services/api';
 import eileenAvatarImg from '../assets/hr.png';
 
 interface OrderDetailViewProps {
@@ -49,103 +51,44 @@ interface TimelineLog {
     eventCode?: EventCode;
 }
 
-// --- 2. ROBUST MOCK DATA ENGINE ---
+// --- 2. TIMELINE EVENT → LOG CONVERTER ---
 
-const AVATARS: Record<string, string> = {
-    '1': 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop&q=80',
-    '2': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80',
-    '3': 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&q=80',
-    '4': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&q=80',
-    '5': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&q=80',
-    '6': 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&q=80',
-};
-
-const getMockCandidateContext = (id: string | null) => {
-    // Default fallback
-    let status = CandidateStatus.DELIVERED;
-    let name = '未知候选人';
-    let role = '候选人';
-    let avatar = AVATARS['4'];
-
-    // Explicit Mock Cases mapping to Dashboard IDs
-    switch (id) {
-        case '1': // 陈思远 - Newly created
-            status = CandidateStatus.PENDING_OUTREACH;
-            name = '陈思远';
-            role = 'Java 专家';
-            avatar = AVATARS['1'];
-            break;
-        case '2': // 林雨晴 - In Call
-            status = CandidateStatus.INTERVIEWING;
-            name = '林雨晴';
-            role = 'Java 架构师';
-            avatar = AVATARS['2'];
-            break;
-        case '3': // 周子涵 - Analyzing
-            status = CandidateStatus.ANALYZING;
-            name = '周子涵';
-            role = '测试专家';
-            avatar = AVATARS['3'];
-            break;
-        case '4': // 赵嘉明 - Delivered
-            status = CandidateStatus.DELIVERED;
-            name = '赵嘉明';
-            role = '高级前端工程师';
-            avatar = AVATARS['4'];
-            break;
-        case '5': // 吴晓斗 - Exception
-            status = CandidateStatus.EXCEPTION;
-            name = '吴晓斗';
-            role = '产品经理';
-            avatar = AVATARS['5'];
-            break;
-        case '6': // Extra - Invited
-            status = CandidateStatus.TOUCHED;
-            name = '姜琳';
-            role = '算法工程师';
-            avatar = AVATARS['6'];
-            break;
-        default:
-            status = CandidateStatus.DELIVERED;
-            name = '赵嘉明 (演示)';
-            role = '高级前端工程师';
-            avatar = AVATARS['4'];
-    }
-
-    // Dynamic Timeline Logs Generation — aligned with EventCode
-    const logs: TimelineLog[] = [
-        { time: '14:00', title: '任务创建', detail: 'HR 创建初筛任务，简历已上传', eventCode: EventCode.TASK_CREATED },
-        { time: '14:02', title: '简历解析完成', detail: '已提取关键技能，Ailin 生成考察问题建议', eventCode: EventCode.RESUME_PARSED },
-    ];
-
-    if (status !== CandidateStatus.PENDING_OUTREACH) {
-        logs.push({ time: '14:05', title: 'HR 已复制邀约链接', detail: '考察问题已确认，邀约链接已生成并复制', eventCode: EventCode.INVITE_COPIED });
-    }
-
-    if ([CandidateStatus.INTERVIEWING, CandidateStatus.ANALYZING, CandidateStatus.DELIVERED, CandidateStatus.EXCEPTION].includes(status)) {
-        logs.push({ time: '14:30', title: '候选人打开链接', detail: '设备检测通过 (iOS / Safari)', eventCode: EventCode.LANDING_OPENED });
-        logs.push({ time: '14:31', title: '面试开始', detail: '双方已接入，AI 开始对话', eventCode: EventCode.INTERVIEW_STARTED });
-    }
-
-    if (status === CandidateStatus.EXCEPTION) {
-        logs.push({ time: '14:35', title: '面试异常中断', detail: '检测到候选人主动挂断或信号丢失', type: 'error', eventCode: EventCode.INTERVIEW_EXCEPTION });
-    }
-
-    if ([CandidateStatus.ANALYZING, CandidateStatus.DELIVERED].includes(status)) {
-        logs.push({ time: '14:45', title: '面试结束', detail: '通话时长 14 分 20 秒', eventCode: EventCode.INTERVIEW_ENDED });
-        logs.push({ time: '14:46', title: '生成分析报告中', detail: '正在进行语音转写与意图识别...', eventCode: EventCode.ANALYSIS_STARTED });
-    }
-
-    if (status === CandidateStatus.DELIVERED) {
-        logs.push({ time: '14:48', title: '报告已交付', detail: '包含 3 个关键风险点提示，已发送通知', type: 'success', eventCode: EventCode.REPORT_DELIVERED });
-    }
-
-    return { status, name, role, logs, avatar };
-};
+function timelineToLogs(events: TimelineEvent[]): TimelineLog[] {
+    return events.map(evt => ({
+        time: new Date(evt.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        title: evt.title,
+        detail: evt.detail || '',
+        eventCode: evt.eventCode as EventCode | undefined,
+        type: evt.eventCode === EventCode.INTERVIEW_EXCEPTION ? 'error' as const
+            : evt.eventCode === EventCode.REPORT_DELIVERED ? 'success' as const
+            : 'default' as const,
+    }));
+}
 
 const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNavigate, defaultTab = 'ANALYSIS' }) => {
     const { addToast } = useNotification();
-    const { status, name, role, logs, avatar } = useMemo(() => getMockCandidateContext(candidateId), [candidateId]);
+
+    // --- API data loading ---
+    const [apiData, setApiData] = useState<CandidateDetailResponse | null>(null);
+    const [apiLoading, setApiLoading] = useState(true);
+    const [apiError, setApiError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!candidateId) return;
+        setApiLoading(true);
+        setApiError(null);
+        candidatesApi.get(candidateId)
+            .then(data => setApiData(data))
+            .catch(err => setApiError(err.message || '加载失败'))
+            .finally(() => setApiLoading(false));
+    }, [candidateId]);
+
+    // Derive display fields from API data (with fallbacks)
+    const status = (apiData?.candidate?.status as CandidateStatus) || CandidateStatus.PENDING_OUTREACH;
+    const name = apiData?.candidate?.name || '加载中...';
+    const role = apiData?.candidate?.role || '';
+    const avatar = apiData?.candidate?.avatar || '';
+    const logs = useMemo(() => timelineToLogs(apiData?.timeline || []), [apiData?.timeline]);
 
     // Local state for Decision Logic
     const [decisionState, setDecisionState] = useState<'NONE' | 'PROCESSING' | 'PROCEED' | 'FOLLOWUP' | 'HOLD'>('NONE');
@@ -177,9 +120,12 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     }, []);
 
     // 3-WAY ROUTING DECISION HANDLER
-    const handleDecision = (type: 'PROCEED' | 'FOLLOWUP' | 'HOLD') => {
+    const handleDecision = async (type: 'PROCEED' | 'FOLLOWUP' | 'HOLD') => {
+        if (!candidateId) return;
         setDecisionState('PROCESSING');
-        setTimeout(() => {
+        const recommendationMap = { PROCEED: 'Proceed' as const, FOLLOWUP: 'FollowUp' as const, HOLD: 'Hold' as const };
+        try {
+            await candidatesApi.update(candidateId, { recommendation: recommendationMap[type] });
             setDecisionState(type);
             const msgs: Record<string, { title: string; type: 'success' | 'warning' | 'error' }> = {
                 PROCEED: { title: `已通过「${name}」初筛`, type: 'success' },
@@ -188,68 +134,43 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
             };
             const msg = msgs[type];
             addToast({ type: msg.type, title: msg.title });
-        }, 1000);
+        } catch (err: any) {
+            setDecisionState('NONE');
+            addToast({ type: 'error', title: err.message || '操作失败' });
+        }
     };
+
+    // Loading / Error state
+    if (apiLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/20">
+                <div className="text-center">
+                    <Loader2 size={32} className="text-indigo-500 animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-slate-500">正在加载候选人信息...</p>
+                </div>
+            </div>
+        );
+    }
+    if (apiError) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/20">
+                <div className="text-center">
+                    <AlertTriangle size={32} className="text-rose-400 mx-auto mb-3" />
+                    <p className="text-sm text-rose-600 mb-2">{apiError}</p>
+                    <button onClick={() => onNavigate(ViewState.DASHBOARD)} className="text-sm text-indigo-600 underline">返回工作台</button>
+                </div>
+            </div>
+        );
+    }
 
     // Progress Bar logic — use STATUS_TO_STEP mapping
     const currentStepIndex = STATUS_TO_STEP[status] ?? 0;
     const progressPercentage = (currentStepIndex / (STEPS.length - 1)) * 100;
 
-    // Mock Resume Data — expanded with PRD 5-segment fields
-    const observations: Observation[] = [
-        {
-            id: 'o1', category: '技术深度验证', title: 'React Fiber 架构理解',
-            observation: '候选人对 Scheduler 调度机制描述准确，能清晰解释时间切片原理。',
-            quote: '...Fiber 其实就是把递归改成了链表遍历，利用 requestIdleCallback 做时间切片...',
-            evidenceTime: '04:15 - 05:30', signalType: 'CONFIDENT', confidence: 'High',
-            relatedSectionId: 'work_1'
-        },
-        {
-            id: 'o2', category: '离职动机核实', title: '关于离职原因的陈述',
-            observation: '提及团队变动时语速变慢，且与简历上的时间线（空窗期）存在逻辑断层。',
-            quote: '呃...主要是当时...那个业务线调整了嘛，然后...我们也换了 Leader...',
-            evidenceTime: '12:10 - 13:45', signalType: 'HESITANT', confidence: 'Mid',
-            gap: '表达流利度下降，未正面回答裁员比例问题。',
-            nextQuestion: '建议背调重点核实该段社保缴纳记录，并追问"业务线调整后您的去向安排是怎样的？"',
-            relatedSectionId: 'work_1_reason'
-        },
-        {
-            id: 'o3', category: '项目真实性核验', title: 'CRM 微前端重构规模存疑',
-            observation: '候选人描述项目规模为"几十个子应用"，但追问具体数字时回答含糊。',
-            quote: '差不多...十几二十个吧，具体记不太清了...',
-            evidenceTime: '08:20 - 09:10', signalType: 'CONTRADICTORY', confidence: 'Low',
-            gap: '未能给出子应用具体数量、团队分工、以及自己负责的模块范围。',
-            nextQuestion: '请追问"你负责的基座具体接入了几个子应用？上线后的首屏加载时间是多少？"',
-            relatedSectionId: 'p1_d1'
-        }
-    ];
-
-    const resumeSections: ResumeSection[] = [
-        { id: 'header', type: 'header', content: { name: name, role: role, contact: '138-0000-0000 · email@example.com', loc: '北京 · 望京' } },
-        {
-            id: 'work_1', type: 'work', verificationStatus: 'warning', content: {
-                company: '北京字节跳动科技有限公司', role: '资深前端开发工程师', time: '2021.03 - 至今',
-                desc: [
-                    { text: '负责核心业务中台建设，支撑日均千万级 PV 访问。', id: 'w1_p1', status: 'verified' },
-                    { text: '主导 React 16 到 18 的架构升级，First Contentful Paint (FCP) 提升 40%。', id: 'w1_p2', status: 'verified' },
-                    { text: '离职原因：寻求更大的技术挑战及业务发展空间。', id: 'work_1_reason', status: 'risk' }
-                ]
-            }
-        },
-        {
-            id: 'project_1', type: 'project', verificationStatus: 'neutral', content: {
-                name: '企业级 CRM 微前端重构', role: '前端负责人',
-                desc: [{ text: '基于 qiankun 构建微前端基座，实现巨石应用拆解。', id: 'p1_d1', status: 'risk' }]
-            }
-        }
-    ];
-
-    const transcript = [
-        { speaker: 'AI', text: '您好，这里是字节跳动招聘组的 AI 助理 Ailin。请问现在方便大概花 10 分钟聊聊吗？', time: '00:05' },
-        { speaker: 'Candidate', text: '嗯，方便的，您请说。', time: '00:12' },
-        { speaker: 'AI', text: '好的。我看到您简历里提到了 React 18 的升级经历。能具体讲讲在处理并发更新时，遇到了哪些棘手的问题吗？', time: '00:18' },
-        { speaker: 'Candidate', text: '呃...主要是当时...那个业务线调整了嘛，然后...我们也换了 Leader... 其实技术上主要是调度器那块...', time: '00:35', highlight: 'risk' },
-    ];
+    // Data from API (with fallback empty arrays for pre-report states)
+    const observations: Observation[] = apiData?.observations || [];
+    const resumeSections: ResumeSection[] = apiData?.resume?.sections || [];
+    const transcript: Array<{ speaker: string; text: string; time: string; highlight?: string }> = []; // Transcript not in MVP API yet
 
     // AI Recommendation Logic
     const getAIRecommendation = () => {
@@ -261,30 +182,13 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
         return { type: 'Proceed' as const };
     };
 
-    const coreSummary = '技术功底扎实，React 架构理解深入；但离职动机描述含糊，微前端项目规模细节存疑。建议二面重点追问上述两点。';
+    const coreSummary = apiData?.candidate ? '报告数据来自 AI 分析引擎' : '';
     const followUpQuestions = observations.filter(o => o.nextQuestion);
 
-    // KSQ Results & Baseline Coverage for report
-    const ksqResults: KSQItem[] = [
-        { id: 'ksq1', topic: 'React 项目经验深度', rubric: '能说出具体优化指标和数据', result: 'pass', evidence: '能说出 FCP 提升 40%，时间切片原理' },
-        { id: 'ksq2', topic: '微前端架构实操', rubric: '能描述接入的子应用数和分工', result: 'partial', evidence: '说“十几二十个”但给不了具体数' },
-        { id: 'ksq3', topic: '离职动机核实', rubric: '各段经历的离开原因清晰连贯', result: 'partial', evidence: '语速变慢，未正面回答裁员比例' },
-    ];
-    const ksqSectionMap: Record<string, string> = {
-        'ksq1': 'work_1',
-        'ksq2': 'p1_d1',
-        'ksq3': 'work_1_reason',
-    };
-    const baselineCoverage: BaselineCoverage[] = [
-        { label: '薪资范围匹配', status: 'pass' },
-        { label: '学历信息已核实', status: 'pass' },
-        { label: '到岗时间已确认', status: 'pass' },
-        { label: '表达流畅，逻辑清晰', status: 'pass' },
-        { label: '工作经历无明显空窗', status: 'pass' },
-        { label: '回答条理清晰', status: 'pass' },
-        { label: '求职动机已了解', status: 'pass' },
-        { label: '地域意向待确认', status: 'warning' },
-    ];
+    // KSQ Results & Baseline Coverage from API
+    const ksqResults: KSQItem[] = apiData?.ksqResults || [];
+    const ksqSectionMap: Record<string, string> = {};
+    const baselineCoverage: BaselineCoverage[] = apiData?.baselineCoverage || [];
 
     // Format seconds to MM:SS
     const formatTime = (seconds: number) => {
@@ -396,7 +300,11 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                         <div className="rounded-xl border border-slate-200/80 bg-white overflow-hidden shadow-sm">
                             {/* --- Top: Basic Info with Avatar --- */}
                             <div className="px-6 pt-5 pb-4 flex items-start gap-4">
-                                <img src={avatar} alt={name} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-md shrink-0 mt-0.5" />
+                                {avatar ? (
+                                    <img src={avatar} alt={name} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-md shrink-0 mt-0.5" />
+                                ) : (
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold ring-2 ring-white shadow-md shrink-0 mt-0.5">{name.charAt(0)}</div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
                                         <h1 className="text-lg font-bold text-slate-900 tracking-tight">

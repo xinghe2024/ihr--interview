@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { UserProfile } from '../../shared/types';
+import {
+  auth as authApi,
+  getStoredUser,
+  getStoredToken,
+  getStoredRefreshToken,
+  storeAuth,
+  clearAuth,
+  setForceLogoutCallback,
+} from '../services/api';
 
-// ---- Types ----
-export interface UserProfile {
-    id: string;
-    name: string;
-    phone: string;
-    company: string;
-    role: string;
-    avatar?: string;
-}
+export type { UserProfile };
 
 interface AuthState {
     user: UserProfile | null;
@@ -22,30 +24,6 @@ interface AuthContextValue extends AuthState {
     sendVerificationCode: (phone: string) => Promise<boolean>;
 }
 
-// ---- Storage Key ----
-const AUTH_STORAGE_KEY = 'ihr_nexus_auth';
-
-// ---- Mock data ----
-const MOCK_USERS: Record<string, UserProfile> = {
-    '13800000000': {
-        id: 'user_hr_001',
-        name: '刘思远',
-        phone: '13800000000',
-        company: '星河网络',
-        role: '高级HR经理',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80',
-    },
-    '13900000000': {
-        id: 'user_hr_002',
-        name: '张晓燕',
-        phone: '13900000000',
-        company: '极光科技',
-        role: '招聘总监',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80',
-    },
-};
-
-// ---- Context ----
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const useAuth = (): AuthContextValue => {
@@ -54,62 +32,66 @@ export const useAuth = (): AuthContextValue => {
     return ctx;
 };
 
-// ---- Provider ----
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // On mount: check localStorage for saved session
+    const doLogout = () => {
+        clearAuth();
+        setUser(null);
+    };
+
+    // Register force-logout callback for API client (token expiry)
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem(AUTH_STORAGE_KEY);
-            if (saved) {
-                const parsed = JSON.parse(saved) as UserProfile;
-                setUser(parsed);
-            }
-        } catch {
-            localStorage.removeItem(AUTH_STORAGE_KEY);
-        }
-        setIsLoading(false);
+        setForceLogoutCallback(doLogout);
     }, []);
 
-    // Persist auth state
-    const persistUser = (u: UserProfile | null) => {
-        if (u) {
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(u));
-        } else {
-            localStorage.removeItem(AUTH_STORAGE_KEY);
-        }
-        setUser(u);
-    };
+    // On mount: restore session from localStorage
+    useEffect(() => {
+        const restore = async () => {
+            const savedUser = getStoredUser();
+            const token = getStoredToken();
+            const refreshToken = getStoredRefreshToken();
 
-    // Mock: send verification code
-    const sendVerificationCode = async (phone: string): Promise<boolean> => {
-        // Simulate network delay
-        await new Promise((r) => setTimeout(r, 800));
-        // In mock mode, any valid phone format succeeds
-        return /^1[3-9]\d{9}$/.test(phone);
-    };
-
-    // Mock: login with phone + code
-    const login = async (phone: string, _code: string): Promise<boolean> => {
-        await new Promise((r) => setTimeout(r, 1000));
-        // Mock: code "1234" always works; any user in MOCK_USERS or auto-create
-        if (_code !== '1234') return false;
-        const existing = MOCK_USERS[phone];
-        const profile: UserProfile = existing || {
-            id: 'user_' + Date.now(),
-            name: '用户' + phone.slice(-4),
-            phone,
-            company: '未填写',
-            role: '招聘顾问',
+            if (savedUser && token) {
+                // Try to validate token by refreshing
+                if (refreshToken) {
+                    try {
+                        const res = await authApi.refresh(refreshToken);
+                        storeAuth(res.token, refreshToken, savedUser);
+                        setUser(savedUser);
+                    } catch {
+                        // Refresh failed — clear stale auth
+                        clearAuth();
+                    }
+                } else {
+                    // No refresh token but has access token — use it until it expires
+                    setUser(savedUser);
+                }
+            }
+            setIsLoading(false);
         };
-        persistUser(profile);
-        return true;
+        restore();
+    }, []);
+
+    const sendVerificationCode = async (phone: string): Promise<boolean> => {
+        try {
+            const res = await authApi.sendCode(phone);
+            return res.sent;
+        } catch {
+            return false;
+        }
     };
 
-    const logout = () => {
-        persistUser(null);
+    const login = async (phone: string, code: string): Promise<boolean> => {
+        try {
+            const res = await authApi.login(phone, code);
+            storeAuth(res.token, res.refreshToken, res.user);
+            setUser(res.user);
+            return true;
+        } catch {
+            return false;
+        }
     };
 
     return (
@@ -119,7 +101,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isLoading,
                 isAuthenticated: !!user,
                 login,
-                logout,
+                logout: doLogout,
                 sendVerificationCode,
             }}
         >

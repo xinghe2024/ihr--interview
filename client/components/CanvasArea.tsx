@@ -8,16 +8,17 @@ import OrderDetailView from '../views/OrderDetailView';
 interface CanvasAreaProps {
   currentView: ViewState;
   selectedCandidateId: string | null;
+  interviewSessionId?: string | null;
   onNavigate: (view: ViewState, id?: string) => void;
   browserContext: 'empty' | 'resume';
   setBrowserContext: (ctx: 'empty' | 'resume') => void;
   onUnreadCountChange?: (count: number) => void;
 }
 
-const CanvasArea: React.FC<CanvasAreaProps> = ({ currentView, selectedCandidateId, onNavigate, browserContext, setBrowserContext, onUnreadCountChange }) => {
+const CanvasArea: React.FC<CanvasAreaProps> = ({ currentView, selectedCandidateId, interviewSessionId, onNavigate, browserContext, setBrowserContext, onUnreadCountChange }) => {
   // Full Screen Overlays
   if (currentView === ViewState.CANDIDATE_MOBILE) {
-    return <CandidateMobileView onExit={() => onNavigate(ViewState.DASHBOARD)} />;
+    return <CandidateMobileView onExit={() => onNavigate(ViewState.DASHBOARD)} sessionId={interviewSessionId || undefined} />;
   }
 
   // Unified Order Detail View for both Reporting and Tracking phases

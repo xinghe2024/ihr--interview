@@ -1,80 +1,275 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, PhoneOff, ChevronLeft, ShieldCheck, Sparkles, ArrowRight, VideoOff, Phone, Star, Coffee, RefreshCw, Send, MessageSquare, Clock, Lock } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Mic, PhoneOff, ShieldCheck, Sparkles, ArrowRight, Coffee, RefreshCw, Send, MessageSquare, Lock, CheckCircle, User } from 'lucide-react';
+import { interviews as interviewsApi } from '../services/api';
+import type { InterviewLandingResponse, InterviewSummary, InterviewProgress } from '../../shared/types';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import VoiceBubble from '../components/VoiceBubble';
 
 interface CandidateMobileViewProps {
     onExit: () => void;
+    sessionId?: string;
 }
 
-type MobileState = 'LANDING' | 'PERMISSION' | 'INCALL' | 'INTERRUPTED' | 'ENDED';
-type InterviewMode = 'VOICE' | 'TEXT';
+type MobileState = 'LANDING' | 'CHATTING' | 'INTERRUPTED' | 'ENDED';
+type InputMode = 'voice' | 'text';
 
 interface ChatMessage {
     id: string;
-    role: 'ai' | 'candidate';
+    role: 'ai' | 'candidate' | 'system';
     content: string;
     timestamp: number;
+    topic?: string;
+    isVoice?: boolean;
+    audioDuration?: number;
+    isSending?: boolean;
+    isFailed?: boolean;
+    failedPayload?: { blob?: Blob; text?: string; duration?: number };
 }
 
-// Mock interview script for text mode debugging
-const MOCK_INTERVIEW_SCRIPT: Array<{ ai: string; topic?: string }> = [
-    { ai: '您好赵嘉明，我是 Ailin，受李先生委托与您进行一次初步沟通。请问现在方便吗？' },
-    { ai: '好的，谢谢。我看到您简历里提到了 React 18 的升级经历，能具体讲讲在这个过程中，遇到的最大技术挑战是什么吗？', topic: 'React 项目经验深度' },
-    { ai: '明白了。那您在之前公司负责的微前端架构，大概接入了多少子应用？团队分工是怎样的？', topic: '微前端架构实操' },
-    { ai: '了解。最后想聊聊，您从上一家公司离开的主要原因是什么？对下一份工作有什么期望？', topic: '离职动机核实' },
-    { ai: '感谢您的分享！本次沟通到此结束，结果将在 24 小时内反馈给您。祝一切顺利！' },
-];
+/** Extracted Timer — self-manages state to avoid re-rendering parent every second */
+const Timer: React.FC<{
+    isRunning: boolean;
+    estimatedMinutes: number;
+    onTick?: React.MutableRefObject<(s: number) => void>;
+}> = ({ isRunning, estimatedMinutes, onTick }) => {
+    const [seconds, setSeconds] = useState(0);
+    const secondsRef = useRef(0);
 
-const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => {
+    useEffect(() => {
+        if (!isRunning) return;
+        const interval = setInterval(() => {
+            secondsRef.current += 1;
+            setSeconds(secondsRef.current);
+            onTick?.current?.(secondsRef.current);
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [isRunning, onTick]);
+
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const progress = Math.min(100, (seconds / (estimatedMinutes * 60)) * 100);
+
+    return (
+        <>
+            <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
+                <span className="text-[11px] text-slate-400">进行中 · {formatted}</span>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-100">
+                <div
+                    className="h-full bg-indigo-400 transition-all duration-1000 ease-linear"
+                    style={{ width: `${progress}%` }}
+                />
+            </div>
+        </>
+    );
+};
+
+const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit, sessionId: sessionIdProp }) => {
+    const sessionId = sessionIdProp || (() => {
+        const hash = window.location.hash;
+        const match = hash.match(/#interview\/(.+)/);
+        return match ? match[1] : '';
+    })();
+
     const [state, setState] = useState<MobileState>('LANDING');
-    const [interviewMode, setInterviewMode] = useState<InterviewMode>('VOICE');
-    const [micActive, setMicActive] = useState(false);
-    const [micPermissionGranted, setMicPermissionGranted] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
-    const [timer, setTimer] = useState(0);
+    const [inputMode, setInputMode] = useState<InputMode>('voice');
+    const timerValueRef = useRef(0);
+    const timerTickRef = useRef((s: number) => { timerValueRef.current = s; });
 
-    // Text chat state
+    // Landing data
+    const [landingData, setLandingData] = useState<InterviewLandingResponse | null>(null);
+    const [landingLoading, setLandingLoading] = useState(false);
+    const [landingError, setLandingError] = useState<string | null>(null);
+
+    // Interview state
+    const [interviewCompleted, setInterviewCompleted] = useState(false);
+    const [endSummary, setEndSummary] = useState<InterviewSummary | null>(null);
+    // Chat state
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
-    const [scriptIndex, setScriptIndex] = useState(0);
     const [isAiTyping, setIsAiTyping] = useState(false);
+    const [progress, setProgress] = useState<InterviewProgress | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
-    // Mock Question Progression (voice mode)
-    const question = timer > 3 ? "您好，我看到您在之前的项目中负责过前端架构升级。能具体聊聊在这个过程中，您遇到的最大技术挑战是什么吗？" : "正在接入通话...";
+    // Voice recording — touch state for slide-to-cancel
+    const touchStartY = useRef(0);
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [voiceTooShort, setVoiceTooShort] = useState(false);
+    const [showEndConfirm, setShowEndConfirm] = useState(false);
+    const [showMicPrompt, setShowMicPrompt] = useState(false);
+    const [showToggleHint, setShowToggleHint] = useState(() =>
+        typeof localStorage !== 'undefined' && !localStorage.getItem('ailin_toggle_hint_dismissed')
+    );
+    const [keyboardOffset, setKeyboardOffset] = useState(0);
+    const CANCEL_THRESHOLD = 80;
 
-    // Timer
-    useEffect(() => {
-        let interval: any;
-        if (state === 'INCALL') {
-            interval = setInterval(() => {
-                setTimer(prev => prev + 1);
-            }, 1000);
+    // End interview via API
+    const handleEndInterview = useCallback(async (reason: string) => {
+        if (!sessionId) { setState('ENDED'); return; }
+        try {
+            const res = await interviewsApi.end(sessionId, reason);
+            setEndSummary(res.summary);
+        } catch {
+            // Still transition to ended
         }
-        return () => clearInterval(interval);
-    }, [state]);
+        setState('ENDED');
+    }, [sessionId]);
 
-    // Auto-scroll chat
+    // Voice recording complete → upload + send
+    const handleVoiceComplete = useCallback(async (blob: Blob, durationSeconds: number) => {
+        if (!sessionId || interviewCompleted || durationSeconds < 0.5) return;
+
+        const tempId = 'voice_' + Date.now();
+        const roundedDuration = Math.round(durationSeconds);
+        setChatMessages(prev => [...prev, {
+            id: tempId,
+            role: 'candidate',
+            content: '语音消息',
+            timestamp: Date.now(),
+            isVoice: true,
+            audioDuration: roundedDuration,
+            isSending: true,
+        }]);
+        setIsAiTyping(true);
+
+        try {
+            const uploadRes = await interviewsApi.uploadAudio(sessionId, blob);
+            // Mark as sent
+            setChatMessages(prev => prev.map(msg =>
+                msg.id === tempId ? { ...msg, isSending: false } : msg
+            ));
+
+            const res = await interviewsApi.sendMessage(sessionId, {
+                audioFileId: uploadRes.fileId,
+                audioDuration: roundedDuration,
+            });
+
+            if (res.progress) setProgress(res.progress);
+            if (res.aiReply) {
+                setChatMessages(prev => [...prev, {
+                    id: res.aiReply!.id,
+                    role: 'ai',
+                    content: res.aiReply!.content,
+                    timestamp: Date.now(),
+                    topic: res.aiReply!.topic,
+                }]);
+
+            }
+            if (res.isCompleted) {
+                setInterviewCompleted(true);
+                setTimeout(() => handleEndInterview('completed'), 2000);
+            }
+        } catch (err: any) {
+            // Network-level failures → offer recovery via INTERRUPTED
+            if (err.message?.includes('fetch') || err.message?.includes('network') || !navigator.onLine) {
+                setState('INTERRUPTED');
+            }
+            setChatMessages(prev => prev.map(msg =>
+                msg.id === tempId
+                    ? { ...msg, content: '发送失败，点击重试', isSending: false, isFailed: true, failedPayload: { blob, duration: roundedDuration } }
+                    : msg
+            ));
+        } finally {
+            setIsAiTyping(false);
+        }
+    }, [sessionId, interviewCompleted, handleEndInterview]);
+
+    const recorder = useVoiceRecorder({
+        maxDurationSeconds: 120,
+        minDurationSeconds: 1,
+        onComplete: handleVoiceComplete,
+        onTooShort: () => {
+            setVoiceTooShort(true);
+            setTimeout(() => setVoiceTooShort(false), 2000);
+        },
+        onError: () => setInputMode('text'),
+    });
+
+    // Fetch landing data
+    useEffect(() => {
+        if (!sessionId) return;
+        setLandingLoading(true);
+        setLandingError(null);
+        interviewsApi.getLanding(sessionId)
+            .then(data => setLandingData(data))
+            .catch(err => setLandingError(err.message || '加载面试信息失败'))
+            .finally(() => setLandingLoading(false));
+    }, [sessionId]);
+
+    // Auto-scroll
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages, isAiTyping]);
 
-    // Send first AI message when entering text chat
+    // Auto-dismiss toggle hint after 5 seconds
     useEffect(() => {
-        if (state === 'INCALL' && interviewMode === 'TEXT' && chatMessages.length === 0) {
-            setIsAiTyping(true);
-            setTimeout(() => {
-                setChatMessages([{
-                    id: 'ai_0',
+        if (showToggleHint && state === 'CHATTING') {
+            const t = setTimeout(() => {
+                setShowToggleHint(false);
+                localStorage.setItem('ailin_toggle_hint_dismissed', '1');
+            }, 5000);
+            return () => clearTimeout(t);
+        }
+    }, [showToggleHint, state]);
+
+    // Keyboard viewport adaptation
+    useEffect(() => {
+        if (state !== 'CHATTING') return;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const handleResize = () => {
+            const offset = window.innerHeight - vv.height;
+            setKeyboardOffset(offset > 50 ? offset : 0);
+        };
+        vv.addEventListener('resize', handleResize);
+        return () => vv.removeEventListener('resize', handleResize);
+    }, [state]);
+
+    // Scroll when keyboard opens
+    useEffect(() => {
+        if (keyboardOffset > 0) {
+            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [keyboardOffset]);
+
+    // Start interview — call API and get first AI message
+    useEffect(() => {
+        if (state !== 'CHATTING' || !sessionId || chatMessages.length > 0) return;
+        // System welcome message
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setChatMessages([{
+            id: 'sys_start',
+            role: 'system',
+            content: `— ${timeStr} 对话开始 —`,
+            timestamp: Date.now(),
+        }]);
+        setIsAiTyping(true);
+        interviewsApi.start(sessionId, 'TEXT')
+            .then(res => {
+                if (res.progress) setProgress(res.progress);
+                if (res.firstMessage) {
+                    setChatMessages(prev => [...prev, {
+                        id: 'ai_0',
+                        role: 'ai',
+                        content: res.firstMessage,
+                        timestamp: Date.now(),
+                    }]);
+                }
+            })
+            .catch(err => {
+                setChatMessages(prev => [...prev, {
+                    id: 'err_0',
                     role: 'ai',
-                    content: MOCK_INTERVIEW_SCRIPT[0].ai,
+                    content: `面试启动失败：${err.message || '请稍后重试'}`,
                     timestamp: Date.now(),
                 }]);
-                setScriptIndex(1);
-                setIsAiTyping(false);
-            }, 1000);
-        }
-    }, [state, interviewMode]);
+            })
+            .finally(() => setIsAiTyping(false));
+    }, [state, sessionId]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -82,57 +277,162 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Text chat: send candidate message and get AI reply
-    const handleSendChat = () => {
+    // Text chat send
+    const handleSendChat = useCallback(async () => {
         const text = chatInput.trim();
-        if (!text || isAiTyping) return;
+        if (!text || interviewCompleted || !sessionId) return;
 
-        const candidateMsg: ChatMessage = {
-            id: 'c_' + Date.now(),
+        const msgId = 'c_' + Date.now();
+        setChatMessages(prev => [...prev, {
+            id: msgId,
             role: 'candidate',
             content: text,
             timestamp: Date.now(),
-        };
-        setChatMessages(prev => [...prev, candidateMsg]);
+        }]);
         setChatInput('');
+        setIsAiTyping(true);
 
-        // Check if we have more script to send
-        if (scriptIndex < MOCK_INTERVIEW_SCRIPT.length) {
-            setIsAiTyping(true);
-            const isLastMessage = scriptIndex === MOCK_INTERVIEW_SCRIPT.length - 1;
-            setTimeout(() => {
+        try {
+            const res = await interviewsApi.sendMessage(sessionId, { content: text });
+            if (res.progress) setProgress(res.progress);
+            if (res.aiReply) {
                 setChatMessages(prev => [...prev, {
-                    id: 'ai_' + scriptIndex,
+                    id: res.aiReply!.id,
                     role: 'ai',
-                    content: MOCK_INTERVIEW_SCRIPT[scriptIndex].ai,
+                    content: res.aiReply!.content,
                     timestamp: Date.now(),
+                    topic: res.aiReply!.topic,
                 }]);
-                setScriptIndex(prev => prev + 1);
-                setIsAiTyping(false);
 
-                // Auto-end after last AI message
-                if (isLastMessage) {
-                    setTimeout(() => setState('ENDED'), 2000);
+            }
+            if (res.isCompleted) {
+                setInterviewCompleted(true);
+                setTimeout(() => handleEndInterview('completed'), 2000);
+            }
+        } catch {
+            setChatMessages(prev => prev.map(msg =>
+                msg.id === msgId
+                    ? { ...msg, isFailed: true, failedPayload: { text } }
+                    : msg
+            ));
+        } finally {
+            setIsAiTyping(false);
+        }
+    }, [chatInput, interviewCompleted, sessionId, handleEndInterview]);
+
+    // Retry failed messages
+    const handleRetry = useCallback(async (msgId: string) => {
+        const msg = chatMessages.find(m => m.id === msgId);
+        if (!msg?.failedPayload || !sessionId) return;
+
+        // Remove the failed message
+        setChatMessages(prev => prev.filter(m => m.id !== msgId));
+
+        if (msg.failedPayload.blob) {
+            handleVoiceComplete(msg.failedPayload.blob, msg.failedPayload.duration || 0);
+        } else if (msg.failedPayload.text) {
+            // Re-insert as new candidate message and send
+            const retryId = 'c_' + Date.now();
+            const text = msg.failedPayload.text;
+            setChatMessages(prev => [...prev, {
+                id: retryId, role: 'candidate', content: text, timestamp: Date.now(),
+            }]);
+            setIsAiTyping(true);
+            try {
+                const res = await interviewsApi.sendMessage(sessionId, { content: text });
+                if (res.progress) setProgress(res.progress);
+                if (res.aiReply) {
+                    setChatMessages(prev => [...prev, {
+                        id: res.aiReply!.id, role: 'ai', content: res.aiReply!.content,
+                        timestamp: Date.now(), topic: res.aiReply!.topic,
+                    }]);
                 }
-            }, 1200);
+                if (res.isCompleted) {
+                    setInterviewCompleted(true);
+                    setTimeout(() => handleEndInterview('completed'), 2000);
+                }
+            } catch {
+                setChatMessages(prev => prev.map(m =>
+                    m.id === retryId ? { ...m, isFailed: true, failedPayload: { text } } : m
+                ));
+            } finally {
+                setIsAiTyping(false);
+            }
         }
-    };
+    }, [chatMessages, sessionId, handleVoiceComplete, handleEndInterview]);
 
-    // Handle start interview based on mode
-    const handleStartInterview = () => {
-        if (interviewMode === 'VOICE') {
-            setState('PERMISSION');
+    // Press-to-talk touch handlers
+    const handleTouchStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+        e.preventDefault();
+        // Intercept if mic permission not yet granted
+        if (recorder.permissionState === 'denied') {
+            setShowMicPrompt(true);
+            return;
+        }
+        if (recorder.permissionState !== 'granted' && recorder.permissionState !== 'unknown') {
+            setShowMicPrompt(true);
+            return;
+        }
+        const y = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        touchStartY.current = y;
+        setIsCancelling(false);
+        // Haptic feedback
+        if ('vibrate' in navigator) navigator.vibrate(10);
+        recorder.startRecording();
+    }, [recorder]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+        e.preventDefault();
+        if (isCancelling) {
+            recorder.cancelRecording();
         } else {
-            setState('INCALL');
+            recorder.stopRecording();
         }
-    };
+        setIsCancelling(false);
+    }, [recorder, isCancelling]);
 
-    // --- RENDER FUNCTIONS (called as functions, NOT as <Components />) ---
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (recorder.state !== 'recording') return;
+        const currentY = e.touches[0].clientY;
+        const delta = touchStartY.current - currentY;
+        setIsCancelling(delta > CANCEL_THRESHOLD);
+    }, [recorder.state]);
 
-    const renderLanding = () => (
+    const handleStartInterview = () => setState('CHATTING');
+
+    // --- RENDER FUNCTIONS ---
+
+    const candidateName = landingData?.candidateName || '候选人';
+    const recruiterTitle = landingData?.recruiterTitle || '招聘官';
+    const companyAlias = landingData?.companyAlias || '';
+    const positionTitle = landingData?.positionTitle || '';
+    const estimatedMinutes = landingData?.estimatedMinutes || 15;
+
+    const renderLanding = () => {
+        if (landingLoading) {
+            return (
+                <div className="h-full flex items-center justify-center bg-white">
+                    <div className="text-center">
+                        <div className="w-10 h-10 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-sm text-slate-500">加载面试信息...</p>
+                    </div>
+                </div>
+            );
+        }
+        if (landingError) {
+            return (
+                <div className="h-full flex items-center justify-center bg-white p-6">
+                    <div className="text-center">
+                        <p className="text-base text-rose-500 mb-4">{landingError}</p>
+                        <button onClick={onExit} className="text-sm text-indigo-600 font-bold">返回</button>
+                    </div>
+                </div>
+            );
+        }
+        return (
         <div className="h-full flex flex-col bg-white px-6 pt-8 pb-6 overflow-hidden">
             {/* Top Brand */}
-            <div className="flex items-center gap-2 mb-6 opacity-80 shrink-0">
+            <div className="flex items-center gap-2 mb-5 opacity-80 shrink-0">
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">
                     <Sparkles size={16} />
                 </div>
@@ -141,242 +441,147 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col justify-center min-h-0">
-                <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mb-5 border border-slate-100 shrink-0">
-                    <Phone className="text-indigo-600" size={28} />
-                </div>
-
-                <h1 className="text-[26px] font-extrabold text-slate-900 leading-[1.2] mb-6 tracking-tight shrink-0">
-                    Hi 赵嘉明，<br />
-                    邀请您进行岗位初步沟通
+                {/* 1. WHO — 尊称 + 委托来源 */}
+                <h1 className="text-[22px] font-extrabold text-slate-900 leading-[1.35] mb-4 tracking-tight shrink-0">
+                    {candidateName}您好 👋
                 </h1>
 
-                {/* Education Block */}
-                <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 mb-6 shrink-0">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Sparkles size={16} className="text-indigo-600" />
-                        <span className="text-sm font-bold text-indigo-900">AI 初筛 (AI Screening)</span>
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-4 shrink-0">
+                    <div className="flex items-center gap-3 mb-2.5">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                            <User size={20} className="text-indigo-600" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[15px] font-bold text-slate-900 truncate">
+                                {companyAlias ? `${companyAlias} · ` : ''}{recruiterTitle}
+                            </p>
+                        </div>
                     </div>
-                    <p className="text-[15px] text-slate-700 leading-relaxed mb-4">
-                        我是智能招聘助理 <span className="font-bold">Ailin</span>。受 <span className="font-bold">李先生</span> 委托，想与您进行一次
-                        <span className="font-bold text-indigo-700">{interviewMode === 'VOICE' ? '简单的语音沟通' : '简单的文字沟通'}</span>，了解您的基本情况。
+                    {/* 2. WHAT — 做什么 */}
+                    <p className="text-[14px] text-slate-600 leading-relaxed">
+                        委托 AI 助理 <span className="font-bold text-indigo-600">Ailin</span> 与您进行一次
+                        {positionTitle
+                            ? <>关于「<span className="font-bold text-slate-800">{positionTitle}</span>」岗位的简短沟通</>
+                            : '简短的岗位沟通'
+                        }，了解您的基本情况。
                     </p>
-                    <div className="flex gap-2">
-                        {interviewMode === 'VOICE' ? (
-                            <>
-                                <span className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                                    <Phone size={14} /> 全程语音
-                                </span>
-                                <span className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                                    <VideoOff size={14} /> 无摄像头
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                                    <MessageSquare size={14} /> 文字对话
-                                </span>
-                                <span className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                                    <Clock size={14} /> 随时回复
-                                </span>
-                            </>
-                        )}
-                    </div>
                 </div>
 
-                {/* Benefits */}
-                <div className="space-y-4 shrink-0 overflow-y-auto">
-                    <div className="flex items-start gap-3">
-                        <div className="pt-0.5"><Star size={20} className="text-amber-500" /></div>
-                        <div>
-                            <h3 className="text-[15px] font-bold text-slate-900">结果直通面试官</h3>
-                            <p className="text-[13px] text-slate-500">意向确认后，24小时内对接正式面试。</p>
-                        </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                        <div className="pt-0.5"><Coffee size={20} className="text-emerald-500" /></div>
-                        <div>
-                            <h3 className="text-[15px] font-bold text-slate-900">随时随地畅聊</h3>
-                            <p className="text-[13px] text-slate-500">约需 10-15 分钟，您可以现在接入。</p>
-                        </div>
-                    </div>
+                {/* 3. BENEFIT — 我有什么好处 */}
+                <div className="bg-emerald-50 rounded-2xl px-4 py-3 border border-emerald-100 mb-4 shrink-0 flex items-start gap-2.5">
+                    <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <p className="text-[13px] text-emerald-800 leading-relaxed">
+                        完成沟通 → <span className="font-bold">结果直达面试官</span>，表现优秀者 24 小时内安排正式面试
+                    </p>
+                </div>
+
+                {/* 4. COST — 成本很低 */}
+                <div className="flex flex-wrap gap-2 shrink-0">
+                    <span className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                        <Coffee size={14} /> 仅 {estimatedMinutes} 分钟
+                    </span>
+                    <span className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                        <Mic size={14} /> 语音/文字均可
+                    </span>
+                    <span className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                        <ShieldCheck size={14} /> 无需开摄像头
+                    </span>
                 </div>
             </div>
 
-            {/* Footer */}
+            {/* 5. CTA */}
             <div className="mt-5 space-y-3 shrink-0 pt-2">
-                {/* Mode Switch Tab */}
-                <div className="flex items-center p-1 bg-slate-100 rounded-xl border border-slate-200 mb-1">
-                    <button
-                        onClick={() => setInterviewMode('VOICE')}
-                        className={`flex-1 py-2 text-[13px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${interviewMode === 'VOICE' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <Mic size={14} /> 语音通话
-                    </button>
-                    <button
-                        onClick={() => setInterviewMode('TEXT')}
-                        className={`flex-1 py-2 text-[13px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${interviewMode === 'TEXT' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        <MessageSquare size={14} /> 文字对话
-                    </button>
-                </div>
-
                 <button
                     onClick={handleStartInterview}
                     className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-[16px] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
-                    {interviewMode === 'VOICE' ? '接受委托，接入通话' : '接受委托，开始对话'} <ArrowRight size={18} />
+                    开始对话 <ArrowRight size={18} />
                 </button>
-                {/* Privacy Notice */}
                 <p className="text-center text-[10px] text-slate-400 leading-relaxed pt-1">
                     <Lock size={10} className="inline -mt-0.5 mr-0.5" />
-                    本次沟通将被记录用于招聘评估，您的信息将严格保密
+                    本次沟通仅用于招聘评估，您的信息将严格保密
                 </p>
             </div>
         </div>
-    );
+        );
+    };
 
-    const renderPermission = () => (
-        <div className="h-full flex flex-col p-6 items-center justify-center bg-white relative">
-            <button onClick={() => setState('LANDING')} className="absolute top-6 left-6 p-2 bg-slate-50 rounded-full"><ChevronLeft size={24} /></button>
-
-            <div className="text-center space-y-4 mb-16">
-                <h3 className="text-2xl font-extrabold text-slate-900">测试麦克风</h3>
-                <p className="text-base text-slate-500 leading-relaxed max-w-[280px] mx-auto">
-                    为了保证通话质量，请确保我们能听清您的声音
-                </p>
-            </div>
-
-            <div className="relative mb-20">
-                <div className={`w-48 h-48 rounded-full flex items-center justify-center transition-all duration-500 ${micPermissionGranted ? 'bg-indigo-600 shadow-xl shadow-indigo-200' : 'bg-slate-100'}`}>
-                    <Mic size={56} className={`transition-all ${micPermissionGranted ? 'text-white' : 'text-slate-400'}`} />
-                </div>
-                {micPermissionGranted && <div className="absolute inset-0 border-4 border-indigo-100 rounded-full animate-ping"></div>}
-            </div>
-
-            <div className="w-full">
-                {!micPermissionGranted ? (
-                    <button
-                        onClick={() => {
-                            setMicActive(true);
-                            setTimeout(() => setMicPermissionGranted(true), 1200);
-                        }}
-                        className="w-full py-4 border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-base flex items-center justify-center gap-3 active:scale-95"
-                    >
-                        {micActive ? '正在检测...' : '点击测试'}
-                    </button>
-                ) : (
-                    <div className="space-y-4 animate-in slide-in-from-bottom-4 fade-in">
-                        <button
-                            onClick={() => setState('INCALL')}
-                            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl text-base shadow-xl flex items-center justify-center gap-3 active:scale-95"
-                        >
-                            进入房间，开始通话
-                        </button>
-                        <p className="text-center text-sm text-emerald-600 font-bold flex items-center justify-center gap-2">
-                            <ShieldCheck size={18} /> 设备状态正常
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-
-    const renderInCall = () => (
-        <div className="h-full flex flex-col relative bg-slate-50">
-            <div className="pt-16 px-6 text-center pb-6 z-10">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
-                    <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <span className="text-base font-bold text-slate-700 font-mono">{formatTime(timer)}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">/ ~15:00</span>
-                </div>
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">正在与 AI 招聘助理通话</h3>
-            </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center relative px-6 pb-16">
-                {/* Visualizer — sine wave instead of Math.random() */}
-                <div className="mb-12 flex items-center justify-center gap-1.5 h-16">
-                    {[...Array(5)].map((_, i) => (
-                        <div
-                            key={i}
-                            className="w-3 bg-indigo-400 rounded-full transition-all duration-300"
-                            style={{
-                                height: isMuted ? '8px' : `${Math.sin(timer * 2 + i * 1.2) * 18 + 22}px`,
-                            }}
-                        ></div>
-                    ))}
-                </div>
-
-                <div className="w-full bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Sparkles size={18} className="text-indigo-500" />
-                        <span className="text-xs font-bold text-indigo-500 uppercase">Ailin</span>
-                    </div>
-                    <h3 className="text-lg font-medium text-slate-800 leading-relaxed">
-                        "{question}"
-                    </h3>
-                </div>
-            </div>
-
-            {/* Bottom controls — removed volume button */}
-            <div className="p-8 pb-12 flex items-center justify-center gap-10 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                <button
-                    onClick={() => setIsMuted(!isMuted)}
-                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95 ${isMuted ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}
-                >
-                    {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
-                </button>
-
-                <button
-                    onClick={() => setState('INTERRUPTED')}
-                    className="w-20 h-20 rounded-[2.5rem] bg-rose-500 text-white shadow-xl shadow-rose-200 transition-all active:scale-95 flex items-center justify-center"
-                >
-                    <PhoneOff size={32} fill="currentColor" />
-                </button>
-            </div>
-        </div>
-    );
-
-    const renderTextChat = () => (
+    const renderChat = () => (
         <div className="h-full flex flex-col relative bg-slate-50">
             {/* Header */}
-            <div className="shrink-0 px-5 py-4 bg-white border-b border-slate-100 flex items-center justify-between z-10">
+            <div className="shrink-0 px-5 py-4 bg-white border-b border-slate-100 flex items-center justify-between z-10 relative">
                 <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center">
                         <Sparkles size={16} className="text-white" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900">Ailin · 文字初筛</h3>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                            <span className="text-[11px] text-slate-400">进行中 · {formatTime(timer)}</span>
-                            {MOCK_INTERVIEW_SCRIPT[scriptIndex - 1]?.topic && (
-                                <span className="text-[10px] text-indigo-500 font-bold ml-1">#{MOCK_INTERVIEW_SCRIPT[scriptIndex - 1].topic}</span>
+                        <h3 className="text-sm font-bold text-slate-900">Ailin · {positionTitle || 'AI 助理'}</h3>
+                        <div className="flex items-center gap-2">
+                            <Timer isRunning={state === 'CHATTING'} estimatedMinutes={estimatedMinutes} onTick={timerTickRef} />
+                            {progress && (
+                                <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 px-1.5 py-0.5 rounded">
+                                    {progress.currentQuestion}/{progress.totalQuestions}
+                                </span>
                             )}
                         </div>
                     </div>
                 </div>
-                <span className="text-[10px] text-slate-400 font-medium">~15 分钟</span>
+                <button
+                    onClick={() => setShowEndConfirm(true)}
+                    className="text-[11px] text-slate-400 hover:text-rose-500 flex items-center gap-1 transition-colors px-2 py-1"
+                >
+                    <PhoneOff size={12} /> 结束
+                </button>
             </div>
 
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
-                {chatMessages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.role === 'candidate' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] px-4 py-3 text-[14px] leading-relaxed shadow-sm ${
-                            msg.role === 'candidate'
-                                ? 'bg-indigo-600 text-white rounded-2xl rounded-br-sm'
-                                : 'bg-white text-slate-800 rounded-2xl rounded-bl-sm border border-slate-100'
-                        }`}>
-                            {msg.role === 'ai' && (
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                    <Sparkles size={12} className="text-indigo-500" />
-                                    <span className="text-[10px] font-bold text-indigo-500">Ailin</span>
-                                </div>
-                            )}
-                            {msg.content}
-                        </div>
+                {chatMessages.map((msg) => {
+                    // System message (e.g. "对话开始")
+                    if (msg.role === 'system') {
+                        return (
+                            <div key={msg.id} className="flex justify-center">
+                                <span className="text-[11px] text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{msg.content}</span>
+                            </div>
+                        );
+                    }
+                    return (
+                    <div key={msg.id} className={`flex flex-col ${msg.role === 'candidate' ? 'items-end' : 'items-start'}`}>
+                        {msg.isVoice ? (
+                            <div className="relative">
+                                <VoiceBubble duration={msg.audioDuration || 0} isCandidate={msg.role === 'candidate'} />
+                                {msg.isSending && (
+                                    <div className="absolute -bottom-1 -right-1 w-4 h-4 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin" />
+                                )}
+                            </div>
+                        ) : (
+                            <div className={`max-w-[85%] px-4 py-3 text-[14px] leading-relaxed shadow-sm ${
+                                msg.role === 'candidate'
+                                    ? msg.isFailed
+                                        ? 'bg-rose-100 text-rose-700 rounded-2xl rounded-br-sm border border-rose-200'
+                                        : 'bg-indigo-600 text-white rounded-2xl rounded-br-sm'
+                                    : 'bg-white text-slate-800 rounded-2xl rounded-bl-sm border border-slate-100'
+                            }`}>
+                                {msg.role === 'ai' && (
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                        <Sparkles size={12} className="text-indigo-500" />
+                                        <span className="text-[10px] font-bold text-indigo-500">Ailin</span>
+                                    </div>
+                                )}
+                                {msg.content}
+                            </div>
+                        )}
+                        {msg.isFailed && (
+                            <button
+                                onClick={() => handleRetry(msg.id)}
+                                className="flex items-center gap-1 mt-1 text-[11px] text-rose-500 font-medium"
+                            >
+                                <RefreshCw size={12} /> 重新发送
+                            </button>
+                        )}
                     </div>
-                ))}
+                    );
+                })}
 
                 {/* AI typing indicator */}
                 {isAiTyping && (
@@ -391,35 +596,176 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
                 <div ref={chatEndRef} />
             </div>
 
+            {/* Recording Overlay */}
+            {recorder.state === 'recording' && (
+                <div className="absolute inset-x-0 bottom-24 flex flex-col items-center pb-4 pointer-events-none z-20">
+                    <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-full px-5 py-2.5 shadow-lg">
+                        <div className={`w-3 h-3 rounded-full animate-pulse ${isCancelling ? 'bg-rose-500' : 'bg-red-500'}`} />
+                        <span className="text-sm font-mono font-bold text-slate-700">{formatTime(recorder.duration)}</span>
+                        {recorder.duration >= 110 && (
+                            <span className="text-[10px] text-rose-500 font-bold">即将到时</span>
+                        )}
+                    </div>
+                    <p className={`text-xs mt-2 font-medium ${isCancelling ? 'text-rose-500' : 'text-slate-400'}`}>
+                        {isCancelling ? '松开取消' : '↑ 上滑取消发送'}
+                    </p>
+                </div>
+            )}
+
+            {/* End Confirmation Dialog */}
+            {showEndConfirm && (
+                <div className="absolute inset-0 bg-black/40 z-30 flex items-center justify-center p-6">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-[280px] text-center shadow-xl">
+                        <PhoneOff size={24} className="text-rose-500 mx-auto mb-3" />
+                        <h3 className="text-base font-bold text-slate-900 mb-2">确认结束对话？</h3>
+                        <p className="text-sm text-slate-500 mb-5">结束后将无法继续沟通</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowEndConfirm(false)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold active:scale-95 transition-transform"
+                            >
+                                继续
+                            </button>
+                            <button
+                                onClick={() => { setShowEndConfirm(false); handleEndInterview('candidate_quit'); }}
+                                className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-sm font-bold active:scale-95 transition-transform"
+                            >
+                                结束
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Microphone Permission Prompt */}
+            {showMicPrompt && (
+                <div className="absolute inset-0 bg-black/40 z-30 flex items-end justify-center pb-20">
+                    <div className="bg-white rounded-2xl p-5 mx-4 w-full max-w-[320px] shadow-xl">
+                        <div className="flex items-center gap-3 mb-3">
+                            <Mic size={24} className="text-indigo-600" />
+                            <h3 className="text-base font-bold text-slate-900">
+                                {recorder.permissionState === 'denied' ? '麦克风权限已关闭' : '需要麦克风权限'}
+                            </h3>
+                        </div>
+                        <p className="text-sm text-slate-500 mb-4">
+                            {recorder.permissionState === 'denied'
+                                ? '请在浏览器设置中允许麦克风访问，或切换到文字输入'
+                                : '语音沟通需要使用麦克风，您也可以选择文字输入'}
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => { setShowMicPrompt(false); setInputMode('text'); }}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold active:scale-95 transition-transform"
+                            >
+                                用文字
+                            </button>
+                            {recorder.permissionState !== 'denied' && (
+                                <button
+                                    onClick={() => { setShowMicPrompt(false); recorder.startRecording(); }}
+                                    className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold active:scale-95 transition-transform"
+                                >
+                                    允许麦克风
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Input Area */}
             <div className="shrink-0 bg-white border-t border-slate-100 px-4 py-3 pb-6 space-y-2">
+                {/* Toast messages */}
+                {recorder.error && (
+                    <div className="text-[11px] text-rose-500 text-center pb-1">{recorder.error}</div>
+                )}
+                {voiceTooShort && (
+                    <div className="text-[11px] text-amber-600 text-center pb-1">录音太短，请长按说话</div>
+                )}
+
                 <div className="flex items-center gap-2">
-                    <input
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-                        placeholder={scriptIndex >= MOCK_INTERVIEW_SCRIPT.length ? '对话已结束' : '输入您的回复...'}
-                        disabled={scriptIndex >= MOCK_INTERVIEW_SCRIPT.length || isAiTyping}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 disabled:opacity-50 transition-all"
-                    />
-                    <button
-                        onClick={handleSendChat}
-                        disabled={!chatInput.trim() || isAiTyping || scriptIndex >= MOCK_INTERVIEW_SCRIPT.length}
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                            chatInput.trim() && !isAiTyping
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-500'
-                                : 'bg-slate-100 text-slate-300'
-                        }`}
-                    >
-                        <Send size={18} fill={chatInput.trim() && !isAiTyping ? 'currentColor' : 'none'} />
-                    </button>
+                    {inputMode === 'voice' && recorder.isSupported && !interviewCompleted ? (
+                        <>
+                            {/* Switch to text */}
+                            <div className="relative">
+                                <button
+                                    onClick={() => {
+                                        setInputMode('text');
+                                        if (showToggleHint) {
+                                            setShowToggleHint(false);
+                                            localStorage.setItem('ailin_toggle_hint_dismissed', '1');
+                                        }
+                                    }}
+                                    className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 hover:text-indigo-600 transition-colors"
+                                >
+                                    <MessageSquare size={20} />
+                                </button>
+                                {showToggleHint && (
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-800 text-white text-[11px] px-3 py-1.5 rounded-lg shadow-lg z-10">
+                                        点击切换文字
+                                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45" />
+                                    </div>
+                                )}
+                            </div>
+                            {/* Press-to-talk */}
+                            <button
+                                onTouchStart={!isAiTyping ? handleTouchStart : undefined}
+                                onTouchEnd={!isAiTyping ? handleTouchEnd : undefined}
+                                onTouchMove={!isAiTyping ? handleTouchMove : undefined}
+                                onMouseDown={!isAiTyping ? handleTouchStart : undefined}
+                                onMouseUp={!isAiTyping ? handleTouchEnd : undefined}
+                                className={`flex-1 py-3 rounded-xl text-[14px] font-bold select-none transition-all ${
+                                    isAiTyping
+                                        ? 'bg-slate-50 text-slate-400'
+                                        : recorder.state === 'recording'
+                                            ? isCancelling
+                                                ? 'bg-rose-100 text-rose-600 scale-95'
+                                                : 'bg-indigo-100 text-indigo-700 scale-95'
+                                            : 'bg-slate-100 text-slate-600 active:bg-slate-200'
+                                }`}
+                                style={{ touchAction: 'none' }}
+                            >
+                                {isAiTyping
+                                    ? '对方正在回复...'
+                                    : recorder.state === 'recording'
+                                        ? isCancelling ? '松开取消' : '松开 发送'
+                                        : recorder.state === 'requesting' ? '请求权限...' : '按住 说话'
+                                }
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            {/* Switch to voice (if supported) */}
+                            {recorder.isSupported && (
+                                <button
+                                    onClick={() => setInputMode('voice')}
+                                    className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 hover:text-indigo-600 transition-colors"
+                                >
+                                    <Mic size={20} />
+                                </button>
+                            )}
+                            {/* Text input */}
+                            <input
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
+                                placeholder={interviewCompleted ? '对话已结束' : '输入您的回复...'}
+                                disabled={interviewCompleted}
+                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[14px] text-slate-800 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 disabled:opacity-50 transition-all"
+                            />
+                            <button
+                                onClick={handleSendChat}
+                                disabled={!chatInput.trim() || interviewCompleted}
+                                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                                    chatInput.trim()
+                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-500'
+                                        : 'bg-slate-100 text-slate-300'
+                                }`}
+                            >
+                                <Send size={18} fill={chatInput.trim() ? 'currentColor' : 'none'} />
+                            </button>
+                        </>
+                    )}
                 </div>
-                <button
-                    onClick={() => setState('ENDED')}
-                    className="w-full py-2 text-[12px] font-medium text-slate-400 hover:text-rose-500 flex items-center justify-center gap-1.5 transition-colors"
-                >
-                    <PhoneOff size={12} /> 结束对话
-                </button>
             </div>
         </div>
     );
@@ -430,7 +776,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
                 <PhoneOff className="text-amber-500" size={40} />
             </div>
 
-            <h2 className="text-2xl font-extrabold text-slate-900 mb-3">通话已中断</h2>
+            <h2 className="text-2xl font-extrabold text-slate-900 mb-3">对话已中断</h2>
             <p className="text-base text-slate-500 mb-10 max-w-[280px] mx-auto leading-relaxed">
                 别担心，您的沟通进度<span className="font-bold text-slate-700">已自动保存</span>。
                 <br />如果是误触或信号问题，请点击下方按钮恢复。
@@ -438,14 +784,14 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
 
             <div className="w-full space-y-3">
                 <button
-                    onClick={() => setState('INCALL')}
+                    onClick={() => setState('CHATTING')}
                     className="w-full py-4 bg-indigo-600 text-white rounded-xl text-base font-bold shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 active:scale-95 transition-all"
                 >
-                    <RefreshCw size={18} /> 恢复通话
+                    <RefreshCw size={18} /> 恢复对话
                 </button>
 
                 <button
-                    onClick={() => setState('ENDED')}
+                    onClick={() => handleEndInterview('candidate_quit')}
                     className="w-full py-4 bg-white border border-slate-200 text-slate-500 rounded-xl text-base font-bold flex items-center justify-center gap-2 hover:bg-slate-50 active:scale-95 transition-all"
                 >
                     确认结束沟通
@@ -455,10 +801,9 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
     );
 
     const renderEnded = () => {
-        const topicCount = MOCK_INTERVIEW_SCRIPT.filter(s => s.topic).length;
-        const answeredCount = interviewMode === 'TEXT'
-            ? chatMessages.filter(m => m.role === 'candidate').length
-            : Math.min(topicCount, Math.floor(timer / 30) + 1);
+        const topicCount = endSummary?.topicsCovered ?? chatMessages.filter(m => m.topic).length;
+        const answeredCount = endSummary?.questionsAnswered ?? chatMessages.filter(m => m.role === 'candidate').length;
+        const duration = endSummary?.totalDurationSeconds ?? timerValueRef.current;
 
         return (
             <div className="h-full flex flex-col items-center justify-center p-6 bg-white text-center">
@@ -469,11 +814,10 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
                 <h2 className="text-2xl font-extrabold text-slate-900 mb-3">沟通已完成</h2>
                 <p className="text-base text-slate-500 mb-6">感谢您的配合，沟通记录已生成</p>
 
-                {/* Session Summary — P2 #7 */}
                 <div className="w-full bg-indigo-50/60 rounded-2xl p-5 mb-5 border border-indigo-100">
                     <div className="grid grid-cols-3 gap-3 text-center">
                         <div>
-                            <div className="text-2xl font-extrabold text-indigo-600">{formatTime(timer)}</div>
+                            <div className="text-2xl font-extrabold text-indigo-600">{formatTime(duration)}</div>
                             <div className="text-[11px] text-slate-500 font-medium mt-1">沟通时长</div>
                         </div>
                         <div>
@@ -509,18 +853,14 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit }) => 
         );
     };
 
-    // Determine which INCALL view to show
-    const renderInCallView = () => {
-        if (interviewMode === 'TEXT') return renderTextChat();
-        return renderInCall();
-    };
-
     return (
-        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center font-sans">
-            <div className="w-full max-w-[375px] h-full sm:h-[800px] bg-white sm:rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[100] bg-slate-900/50 flex items-center justify-center font-sans">
+            <div
+                className="w-full max-w-[375px] h-full sm:h-[800px] bg-white sm:rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col transition-all"
+                style={keyboardOffset > 0 ? { height: `calc(100% - ${keyboardOffset}px)` } : undefined}
+            >
                 {state === 'LANDING' && renderLanding()}
-                {state === 'PERMISSION' && renderPermission()}
-                {state === 'INCALL' && renderInCallView()}
+                {state === 'CHATTING' && renderChat()}
                 {state === 'INTERRUPTED' && renderInterrupted()}
                 {state === 'ENDED' && renderEnded()}
 

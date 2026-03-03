@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ViewState } from '../../shared/types';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { chat as chatApi } from '../services/api';
 import { Send, Sparkles, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X } from 'lucide-react';
 
 interface EileenSidebarProps {
@@ -52,9 +53,25 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
+    // Load chat history on mount
+    useEffect(() => {
+        chatApi.getHistory()
+            .then(res => {
+                const loaded: Message[] = res.messages.map(m => ({
+                    id: m.id,
+                    sender: m.role === 'user' ? 'user' as const : 'ai' as const,
+                    type: 'text' as const,
+                    content: m.content,
+                    timestamp: new Date(m.createdAt).getTime(),
+                }));
+                if (loaded.length > 0) setMessages(loaded);
+            })
+            .catch(() => {}); // Silently fail — history is optional
+    }, []);
+
     // --- ACTIONS ---
 
-    const handleSendMessage = (textOverride?: string) => {
+    const handleSendMessage = async (textOverride?: string) => {
         const text = textOverride || inputValue.trim();
         if (!text) return;
 
@@ -63,64 +80,35 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         setInputValue('');
         setIsTyping(true);
 
-        // Simulation Logic
-        setTimeout(() => {
+        try {
+            const res = await chatApi.send(text, {
+                currentUrl: window.location.href,
+                pageTitle: document.title,
+            });
             setIsTyping(false);
-            if (text.includes('分析') || text.includes('简历') || text.includes('赵嘉明')) {
-                triggerAnalysisFlow();
-            } else if (text.includes('上传')) {
-                setMessages(prev => [...prev, { id: 'upload_' + Date.now(), sender: 'ai', type: 'text', content: '好的，请将文件拖入此处，或者点击上传窗口。我支持 PDF, Word 或图片格式的简历解析。', timestamp: Date.now() }]);
-            } else if (text.includes('进度') || text.includes('工作台')) {
-                setMessages(prev => [...prev, { id: 'nav_' + Date.now(), sender: 'ai', type: 'text', content: '好的，正在为您打开工作台，您可以查看所有候选人的实时状态。', timestamp: Date.now() }]);
-                setTimeout(() => onNavigate(ViewState.DASHBOARD), 1000);
-            } else {
-                setMessages(prev => [...prev, { id: 'reply_' + Date.now(), sender: 'ai', type: 'text', content: '收到，正在处理您的指令。', timestamp: Date.now() }]);
-            }
-        }, 1000);
-    };
-
-    const triggerAnalysisFlow = () => {
-        const ksqMsg: Message = {
-            id: 'ksq_' + Date.now(), sender: 'ai', type: 'ksq-card',
-            content: '简历解析完成。已为您生成初筛方案，请确认后开始 AI 面试 👇',
-            data: {
-                candidateName: '赵嘉明',
-                candidateRole: '高级前端工程师',
-                candidateExp: '5年经验',
-                ksqItems: [
-                    { id: 'ksq1', topic: 'React 项目经验深度', rubric: '能说出具体优化指标和数据' },
-                    { id: 'ksq2', topic: '微前端架构实操', rubric: '能描述接入的子应用数和分工' },
-                    { id: 'ksq3', topic: '离职动机核实', rubric: '各段经历的离开原因清晰连贯' },
-                ],
-                baselineItems: [
-                    { label: '核实求职意向（薪资/到岗/地域）', status: 'pass' },
-                    { label: '核实工作经历连贯性', status: 'pass' },
-                    { label: '观察表达与逻辑能力', status: 'pass' },
-                    { label: '了解求职动机与稳定性', status: 'pass' },
-                ]
-            },
-            timestamp: Date.now()
-        };
-        setMessages(prev => [...prev, ksqMsg]);
+            const aiMsg: Message = {
+                id: res.aiReply.id,
+                sender: 'ai',
+                type: 'text',
+                content: res.aiReply.content,
+                timestamp: Date.now(),
+            };
+            setMessages(prev => [...prev, aiMsg]);
+        } catch (err: any) {
+            setIsTyping(false);
+            setMessages(prev => [...prev, {
+                id: 'err_' + Date.now(),
+                sender: 'ai',
+                type: 'text',
+                content: `抱歉，出了点问题: ${err.message || '请稍后再试'}`,
+                timestamp: Date.now(),
+            }]);
+        }
     };
 
     const triggerInvitationAfterKSQ = () => {
-        const newCandidateId = 'zhaojiaming';
-        const inviteLink = 'https://eileen.ai/i/' + newCandidateId + '_' + Date.now().toString(36);
-        const invitationMsg: Message = {
-            id: 'invitation_' + Date.now(), sender: 'ai', type: 'invitation-card',
-            content: '初筛方案已确认！已为该候选人生成 AI 初筛邀约，您可以复制邀约信息发送给候选人 👇',
-            data: {
-                id: newCandidateId,
-                name: '赵嘉明',
-                role: '高级前端工程师',
-                avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&q=80',
-                inviteLink,
-                inviteText: `Hi 赵嘉明，邀请您进行岗位初步沟通。我是智能招聘助理 Ailin，受招聘方委托，想与您进行一次简短的初步沟通（约15分钟），了解您的基本情况和职业意向。\n\n👉 点击开始：${inviteLink}`
-            },
-            timestamp: Date.now()
-        };
-        setMessages(prev => [...prev, invitationMsg]);
+        // In MVP, just send a confirmation message via chat
+        handleSendMessage('初筛方案已确认，请生成面试邀约');
     };
 
     const handleCopyInvitation = async (text: string) => {
@@ -532,7 +520,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                             <span className="text-[13px] font-bold text-slate-900 truncate">赵嘉明</span>
                         </div>
                         <button
-                            onClick={() => triggerAnalysisFlow()}
+                            onClick={() => handleSendMessage('请帮我分析这份简历并生成初筛方案')}
                             className="ml-auto flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-bold rounded-xl shadow-md shadow-indigo-200 transition-all hover:shadow-lg hover:scale-[1.02] whitespace-nowrap"
                         >
                             <ExternalLink size={13} /> 交给 Ailin 来初面

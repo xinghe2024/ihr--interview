@@ -61,6 +61,12 @@ export interface NotificationSummaryResponse {
   events: CandidateUpdateEvent[];
 }
 
+/** PATCH /api/notifications/:id/read — 标记单条已读 */
+// 无 request body，响应使用 ApiResponse<{ id: string; isRead: true }>
+
+/** PATCH /api/notifications/read-all — 全部标记已读 */
+// 无 request body，响应使用 ApiResponse<{ updatedCount: number }>
+
 // ─── 对话 Agent API ─────────────────────────────
 
 /** POST /api/chat/messages — 发送消息给 Agent */
@@ -98,6 +104,9 @@ export interface ChatHistoryResponse {
   }>;
 }
 
+/** DELETE /api/chat/messages — 清空对话历史 */
+// 无 request body，响应使用 ApiResponse<{ cleared: true }>
+
 // ─────────────────────────────────────────────────
 
 export interface TimelineEvent {
@@ -121,8 +130,11 @@ export interface Observation {
   confidence?: 'High' | 'Mid' | 'Low';
   gap?: string;
   nextQuestion?: string;
-  relatedSectionId?: string; // 🆕 Link to Resume Section ID for evidence chain
-  // 🆕 通用素质评估字段
+  relatedSectionId?: string; // Link to Resume Section ID for evidence chain
+  // 🆕 增强证据链（异步语音面试方案）
+  resumeClaim?: string;         // 简历中的原始声称（如"接入 20+ 子应用"）
+  interviewContext?: string;    // 触发该观察的面试问答上下文摘要
+  // 通用素质评估字段（后端内部标签，不对外展示）
   competencyDimension?: CompetencyDimension;
   competencyRating?: CompetencyRating;
   competencyLabel?: string; // 定性标签，如"流畅清晰"、"频繁跳槽"
@@ -135,7 +147,6 @@ export interface Candidate {
   status: CandidateStatus;
   recommendation: 'Proceed' | 'FollowUp' | 'Hold';
   avatar: string;
-  matchScore: number;
   lastUpdate: string;
   timeline?: TimelineEvent[];
   landing_opened_at?: string;      // LANDING_OPENED 事件时间
@@ -373,6 +384,12 @@ export interface UserProfile {
   company: string;
   role: string;         // 如 '高级HR经理'、'招聘总监'
   avatar?: string;
+  zhaopinUserId?: string;  // 智联招聘用户 ID 关联
+}
+
+/** POST /api/auth/zhaopin-exchange — 智联 token 换 NEXUS JWT */
+export interface ZhaopinExchangeRequest {
+  zpAccessToken: string;
 }
 
 /** JWT Token 解码后的 payload（前端一般不直接用，但类型需对齐） */
@@ -426,7 +443,7 @@ export interface ListCandidatesParams extends PaginationParams {
   status?: CandidateStatus;                               // 按状态筛选
   recommendation?: 'Proceed' | 'FollowUp' | 'Hold';      // 按推荐结果筛选
   search?: string;                                          // 模糊搜索（姓名/岗位）
-  sortBy?: 'lastUpdate' | 'matchScore' | 'name';           // 排序字段
+  sortBy?: 'lastUpdate' | 'name';                            // 排序字段（matchScore 已删除）
   sortOrder?: 'asc' | 'desc';                               // 排序方向
 }
 
@@ -447,6 +464,19 @@ export interface CandidateDetailResponse {
 
 /** DELETE /api/candidates/:id — 删除候选人 */
 // 无 request body，响应使用 ApiResponse<{ deleted: true }>
+
+// ================================================================
+// ========== 阶段 1.5：文件上传 ==========
+// ================================================================
+
+/** POST /api/files/upload — 上传简历文件（multipart/form-data） */
+export interface FileUploadResponse {
+  fileId: string;             // 文件唯一 ID（后续关联候选人用）
+  fileName: string;           // 原始文件名
+  mimeType: string;           // MIME 类型，如 'application/pdf'
+  size: number;               // 文件大小（字节）
+  uploadedAt: string;         // 上传时间 ISO 8601
+}
 
 // ================================================================
 // ========== 阶段 2：候选人面试（C 端 H5） ==========
@@ -478,8 +508,9 @@ export interface CreateInterviewRequest {
   candidateId: string;              // 候选人 ID
   channel: InterviewChannelType;    // 面试渠道
   ksqItems: KSQItem[];              // 关键考察问题
-  baselineItems?: BaselineCoverage[]; // 基础覆盖项
+  baselineItems?: BaselineCoverage[]; // 基础覆盖项（MVP 暂不使用，预留）
   expiresInHours?: number;          // 链接有效期（默认 48h）
+  maxDurationMinutes?: number;      // 🆕 面试最长时长（分钟），默认 30，用于防作弊
 }
 
 export interface CreateInterviewResponse {
@@ -500,6 +531,7 @@ export interface InterviewLandingResponse {
   companyAlias?: string;            // 公司别名（可选，保护隐私）
   channel: InterviewChannelType;
   estimatedMinutes: number;         // 预计时长（分钟）
+  maxDurationMinutes: number;       // 🆕 面试最长时长（分钟），前端倒计时用
   status: InterviewSessionStatus;
   expiresAt: string;
 }
@@ -515,6 +547,14 @@ export interface StartInterviewResponse {
   /** 语音模式：WebRTC 房间信息 */
   rtcRoomId?: string;
   rtcToken?: string;
+  /** 面试进度 */
+  progress?: InterviewProgress;
+}
+
+/** 面试进度信息（前端显示 "问题 2/8"） */
+export interface InterviewProgress {
+  currentQuestion: number;    // 当前问题序号（从 1 开始）
+  totalQuestions: number;     // 总问题数
 }
 
 // ---------- 文字面试：消息交互（MVP 核心） ----------
@@ -531,15 +571,23 @@ export interface InterviewMessage {
   id: string;
   sessionId: string;
   role: InterviewMessageRole;
-  content: string;
-  timestamp: string;                // ISO 8601
+  content: string;                    // 文字内容（AI 回复 / 候选人文字 / 语音转写文本）
+  timestamp: string;                  // ISO 8601
   /** AI 消息可携带当前考察维度，前端可展示 */
-  topic?: string;                   // 如 "React 项目经验深度"
+  topic?: string;                     // 如 "React 项目经验深度"
+  // 🆕 语音消息扩展（异步语音面试方案）
+  audioUrl?: string;                  // 语音文件播放地址（仅候选人语音消息有）
+  audioDuration?: number;             // 语音时长（秒）
+  isTranscript?: boolean;             // content 是否为 STT 转写（true=语音转写，false/undefined=原始文字）
 }
 
 /** POST /api/interviews/{sessionId}/messages — 候选人发送一条消息 */
 export interface SendMessageRequest {
-  content: string;
+  content?: string;             // 文字消息内容（文字输入时必填）
+  audioFileId?: string;         // 语音消息的文件 ID（语音输入时必填）
+  audioDuration?: number;       // 语音时长（秒），前端录制时计算
+  // content 和 audioFileId 二选一
+  // 语音流程：前端松手 → 静默上传到 /api/files/upload 拿到 fileId → 发此请求
 }
 
 export interface SendMessageResponse {
@@ -549,6 +597,8 @@ export interface SendMessageResponse {
   aiReply?: InterviewMessage;
   /** 面试是否结束（AI 判断最后一轮时返回 true） */
   isCompleted?: boolean;
+  /** 面试进度 */
+  progress?: InterviewProgress;
 }
 
 /** GET /api/interviews/{sessionId}/messages — 获取历史消息（断线重连） */

@@ -3,8 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { ViewState } from '../../shared/types';
 import {
     Shield, Zap, CheckCircle2, Phone,
-    ArrowRight, Loader2, Trash2, Layout, Headphones, ClipboardList, Target
+    ArrowRight, Loader2, Trash2, Layout, Headphones, ClipboardList, Target, X
 } from 'lucide-react';
+import { productIntro } from '../content/productIntro';
+import { privacyPolicy } from '../content/privacyPolicy';
+import { termsOfService } from '../content/termsOfService';
 
 // Chrome logo SVG 组件（避免使用 lucide 已弃用的 Chrome icon）
 const ChromeIcon = ({ size = 18 }: { size?: number }) => (
@@ -278,6 +281,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
     const [loginSuccess, setLoginSuccess] = useState(false);
     const [loginAnimating, setLoginAnimating] = useState(false);
     const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
+    const [docModal, setDocModal] = useState<null | 'intro' | 'privacy' | 'terms'>(null);
 
     // 检测是否在 Chrome 扩展环境中运行
     useEffect(() => {
@@ -542,12 +546,12 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                         {/* 4. FOOTER */}
                         <footer className="mt-auto py-10 text-center border-t border-slate-100">
                             <div className="flex justify-center gap-6 text-[13px] text-slate-500 mb-4">
-                                <a href="#" className="hover:text-slate-900">产品介绍</a>
-                                <a href="#" className="hover:text-slate-900">隐私条款</a>
-                                <a href="#" className="hover:text-slate-900">服务协议</a>
+                                <button type="button" onClick={() => setDocModal('intro')} className="hover:text-slate-900">产品介绍</button>
+                                <button type="button" onClick={() => setDocModal('privacy')} className="hover:text-slate-900">隐私条款</button>
+                                <button type="button" onClick={() => setDocModal('terms')} className="hover:text-slate-900">服务协议</button>
                             </div>
                             <p className="text-[12px] text-slate-400">
-                                &copy; 2025 Eileen.ai. All rights reserved.
+                                &copy; 2025 Ailin. All rights reserved.
                             </p>
                         </footer>
                     </main>
@@ -665,6 +669,50 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                     </div>
                 )}
             </div>
+
+            {/* 文档弹层：产品介绍 / 隐私条款 / 服务协议 */}
+            {docModal && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                    onClick={() => setDocModal(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                            <h2 className="text-lg font-bold text-slate-900">
+                                {docModal === 'intro' && productIntro.title}
+                                {docModal === 'privacy' && privacyPolicy.title}
+                                {docModal === 'terms' && termsOfService.title}
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setDocModal(null)}
+                                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                aria-label="关闭"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto px-6 py-5 text-slate-600 text-[14px] leading-relaxed">
+                            {(docModal === 'intro' ? productIntro.content : docModal === 'privacy' ? privacyPolicy.content : termsOfService.content)
+                                .split(/\n\n+/)
+                                .map((para, i) => (
+                                    <p key={i} className="mb-4 last:mb-0 whitespace-pre-line">
+                                        {para.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
+                                            part.startsWith('**') && part.endsWith('**') ? (
+                                                <strong key={j} className="font-semibold text-slate-800">{part.slice(2, -2)}</strong>
+                                            ) : (
+                                                part
+                                            )
+                                        )}
+                                    </p>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

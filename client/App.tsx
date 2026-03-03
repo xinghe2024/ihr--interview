@@ -13,13 +13,18 @@ const AppInner: React.FC = () => {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
+  const [interviewSessionId, setInterviewSessionId] = useState<string | null>(null);
   const [browserContext, setBrowserContext] = useState<'empty' | 'resume'>('empty');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const handleNavigate = (view: ViewState, candidateId?: string) => {
+  const handleNavigate = (view: ViewState, id?: string) => {
     setCurrentView(view);
-    if (candidateId) setSelectedCandidateId(candidateId);
+    if (view === ViewState.CANDIDATE_MOBILE && id) {
+      setInterviewSessionId(id);
+    } else if (id) {
+      setSelectedCandidateId(id);
+    }
   };
 
   // Loading state
@@ -47,6 +52,7 @@ const AppInner: React.FC = () => {
       <CanvasArea
         currentView={currentView}
         selectedCandidateId={selectedCandidateId}
+        interviewSessionId={interviewSessionId}
         onNavigate={handleNavigate}
         browserContext={browserContext}
         setBrowserContext={setBrowserContext}

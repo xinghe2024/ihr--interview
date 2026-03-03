@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ViewState, CandidateStatus, CandidateUpdateEvent } from '../../shared/types';
-import { CheckCircle2, User, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, RefreshCw, Activity, Sparkles, UserCheck, Radio, Search, Bell, CheckCheck } from 'lucide-react';
+import type { Candidate } from '../../shared/types';
+import { CheckCircle2, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, Activity, Sparkles, UserCheck, Radio, Search, Bell, CheckCheck } from 'lucide-react';
+import { candidates as candidatesApi, notifications as notificationsApi } from '../services/api';
 
 interface DashboardViewProps {
     onNavigate: (view: ViewState, id: string) => void;
@@ -9,190 +11,34 @@ interface DashboardViewProps {
     onUnreadCountChange?: (count: number) => void;
 }
 
-// EILEEN AVATAR
 import eileenAvatarImg from '../assets/hr.png';
 const EILEEN_AVATAR = eileenAvatarImg;
 
-// --- LOCAL TYPE FOR MOCK DATA ---
-type Verdict = 'Proceed' | 'FollowUp' | 'Hold';
-interface MockCandidate {
-    id: string;
-    name: string;
-    role: string;
-    exp: string;
-    status: CandidateStatus;
-    desc: string;
-    verdict?: Verdict;
-    avatar: string;
-}
-
-// --- REAL AVATAR MAPPING ---
-const AVATARS: Record<string, string> = {
-    '1': 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop&q=80',
-    '2': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80',
-    '3': 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&q=80',
-    '4': 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&q=80',
-    '5': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&q=80',
-    '6': 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&q=80',
-    '7': 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&q=80',
-    '8': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&q=80',
-    '9': 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&h=100&fit=crop&q=80',
-    '10': 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80',
-    '11': 'https://images.unsplash.com/photo-1507081323647-4d250478b919?w=100&h=100&fit=crop&q=80',
-    '12': 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop&q=80',
-    '13': 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&h=100&fit=crop&q=80',
-    '14': 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=100&h=100&fit=crop&q=80',
-    '15': 'https://images.unsplash.com/photo-1521119989659-a83eee488004?w=100&h=100&fit=crop&q=80',
+// Status description for the "progress" column
+const STATUS_DESC: Record<CandidateStatus, string> = {
+    [CandidateStatus.PENDING_OUTREACH]: '简历已解析，等待 HR 发送邀约...',
+    [CandidateStatus.TOUCHED]: '候选人已打开面试链接，等待开始对话...',
+    [CandidateStatus.INTERVIEWING]: 'AI 正在与候选人对话中...',
+    [CandidateStatus.ANALYZING]: '通话已结束，正在生成评估报告...',
+    [CandidateStatus.DELIVERED]: '报告已交付，请查看分析结果',
+    [CandidateStatus.EXCEPTION]: '任务异常，建议人工介入',
 };
 
-// --- MOCK DATA (15 candidates) ---
-const MOCK_CANDIDATES: MockCandidate[] = [
-    // === DELIVERED — Proceed (5) ===
-    {
-        id: '7', name: '王子轩', role: '后端工程师', exp: '7年',
-        status: CandidateStatus.DELIVERED, verdict: 'Proceed',
-        desc: '技术扎实，项目经验丰富，沟通表达清晰。',
-        avatar: AVATARS['7']
-    },
-    {
-        id: '8', name: '李雅婷', role: '数据分析师', exp: '4年',
-        status: CandidateStatus.DELIVERED, verdict: 'Proceed',
-        desc: '分析思维清晰，案例讲述完整，逻辑自洽。',
-        avatar: AVATARS['8']
-    },
-    {
-        id: '9', name: '张明宇', role: 'DevOps 工程师', exp: '6年',
-        status: CandidateStatus.DELIVERED, verdict: 'Proceed',
-        desc: '实战经验丰富，问题解决能力突出。',
-        avatar: AVATARS['9']
-    },
-    {
-        id: '10', name: '刘子琪', role: 'UI 设计师', exp: '5年',
-        status: CandidateStatus.DELIVERED, verdict: 'Proceed',
-        desc: '设计理念前沿，作品集出色，团队协作好。',
-        avatar: AVATARS['10']
-    },
-    {
-        id: '11', name: '黄博文', role: '全栈工程师', exp: '4年',
-        status: CandidateStatus.DELIVERED, verdict: 'Proceed',
-        desc: '技术广度好，学习能力强，成长性佳。',
-        avatar: AVATARS['11']
-    },
-    // === DELIVERED — FollowUp (3) ===
-    {
-        id: '4', name: '赵嘉明', role: '高级前端工程师', exp: '5年',
-        status: CandidateStatus.DELIVERED, verdict: 'FollowUp',
-        desc: '技术功底扎实，离职动机存疑，建议二面追问。',
-        avatar: AVATARS['4']
-    },
-    {
-        id: '12', name: '孙芮', role: '项目经理', exp: '8年',
-        status: CandidateStatus.DELIVERED, verdict: 'FollowUp',
-        desc: '管理经验丰富但跳槽频繁，建议了解稳定性。',
-        avatar: AVATARS['12']
-    },
-    {
-        id: '13', name: '陈浩然', role: 'Java 工程师', exp: '6年',
-        status: CandidateStatus.DELIVERED, verdict: 'FollowUp',
-        desc: '技术能力达标，薪资期望偏高，需沟通对齐。',
-        avatar: AVATARS['13']
-    },
-    // === DELIVERED — Hold (1) ===
-    {
-        id: '14', name: '马晨曦', role: '产品经理', exp: '3年',
-        status: CandidateStatus.DELIVERED, verdict: 'Hold',
-        desc: '项目描述模糊，关键指标无法量化，存在较大疑点。',
-        avatar: AVATARS['14']
-    },
-    // === IN PROGRESS (4) ===
-    {
-        id: '1', name: '陈思远', role: 'Java 专家', exp: '10年',
-        status: CandidateStatus.PENDING_OUTREACH,
-        desc: '简历已解析，等待 HR 发送邀约...',
-        avatar: AVATARS['1']
-    },
-    {
-        id: '2', name: '林雨晴', role: 'Java 架构师', exp: '8年',
-        status: CandidateStatus.INTERVIEWING,
-        desc: 'AI 正在与候选人对话中...',
-        avatar: AVATARS['2']
-    },
-    {
-        id: '3', name: '周子涵', role: '测试专家', exp: '6年',
-        status: CandidateStatus.ANALYZING,
-        desc: '通话已结束，正在生成评估报告...',
-        avatar: AVATARS['3']
-    },
-    {
-        id: '6', name: '姜琳', role: '算法工程师', exp: '4年',
-        status: CandidateStatus.TOUCHED,
-        desc: '候选人已打开面试链接，等待开始对话...',
-        avatar: AVATARS['6']
-    },
-    {
-        id: '15', name: '韩雪', role: '测试工程师', exp: '3年',
-        status: CandidateStatus.PENDING_OUTREACH,
-        desc: '简历已解析，等待 HR 发送邀约...',
-        avatar: AVATARS['15']
-    },
-    // === EXCEPTION (1) ===
-    {
-        id: '5', name: '吴晓斗', role: '产品经理', exp: '3年',
-        status: CandidateStatus.EXCEPTION,
-        desc: '任务异常，建议人工介入。',
-        avatar: AVATARS['5']
-    },
-];
-
-// --- DYNAMIC AGENT STATES ---
+// Agent status bar — static for now (will be dynamic when real-time events are implemented)
 const AGENT_ACTIVITIES = [
-    { text: "今日已完成 9 人筛选：5 人建议面试，3 人需关注，1 人暂缓", icon: Sparkles, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", dot: "bg-indigo-500" },
-    { text: "正在面试候选人 林雨晴 (05:23)...", icon: Phone, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", dot: "bg-indigo-500" },
-    { text: "正在生成 周子涵 的面试分析报告 (89%)...", icon: Loader2, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", dot: "bg-amber-500", spin: true },
-    { text: "正在呼叫候选人 姜琳 (第1次尝试)...", icon: Radio, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", dot: "bg-emerald-500" },
-    { text: "赵嘉明 报告已交付 → 需关注离职动机", icon: AlertTriangle, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", dot: "bg-amber-500" },
-];
-
-// --- MOCK: 新动态事件 ---
-const INITIAL_UPDATE_EVENTS: CandidateUpdateEvent[] = [
-    {
-        id: 'evt-1',
-        candidateId: '7',
-        candidateName: '王子轩',
-        candidateRole: '后端工程师',
-        eventType: 'report_delivered',
-        message: '初筛报告已交付 — 建议面试',
-        severity: 'success',
-        isRead: false,
-        createdAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(), // 3 分钟前
-    },
-    {
-        id: 'evt-2',
-        candidateId: '6',
-        candidateName: '姜琳',
-        candidateRole: '算法工程师',
-        eventType: 'candidate_opened',
-        message: '候选人已打开面试链接',
-        severity: 'info',
-        isRead: false,
-        createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 小时前
-    },
-    {
-        id: 'evt-3',
-        candidateId: '5',
-        candidateName: '吴晓斗',
-        candidateRole: '产品经理',
-        eventType: 'interview_exception',
-        message: '面试异常中断 — 建议人工介入',
-        severity: 'error',
-        isRead: false,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 小时前
-    },
+    { text: "Ailin 就绪，等待指令", icon: Sparkles, color: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-100", dot: "bg-indigo-500" },
+    { text: "正在监听候选人动态...", icon: Radio, color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", dot: "bg-emerald-500" },
 ];
 
 type FilterType = 'ALL' | 'PROCEED' | 'FOLLOW_UP' | 'HOLD' | 'IN_PROGRESS' | 'EXCEPTION';
 
-// 轻量 info tooltip 组件
+// Default avatar fallback — shows first character of name
+const AvatarFallback = ({ name }: { name: string }) => (
+    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold shrink-0 ring-2 ring-white shadow-sm">
+        {name.charAt(0)}
+    </div>
+);
+
 const InfoTip = ({ text, className = '' }: { text: string; className?: string }) => {
     const [open, setOpen] = useState(false);
     return (
@@ -218,15 +64,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     const [searchQuery, setSearchQuery] = useState('');
     const [activityIndex, setActivityIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [updateEvents, setUpdateEvents] = useState<CandidateUpdateEvent[]>(INITIAL_UPDATE_EVENTS);
+    const [candidateList, setCandidateList] = useState<Candidate[]>([]);
+    const [updateEvents, setUpdateEvents] = useState<CandidateUpdateEvent[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
-    // Skeleton entrance animation
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 400);
-        return () => clearTimeout(timer);
+    // Fetch candidates and notifications from API
+    const fetchData = useCallback(async () => {
+        try {
+            setError(null);
+            const [candRes, notifRes] = await Promise.all([
+                candidatesApi.list({ page: 1, pageSize: 100 }),
+                notificationsApi.getSummary(),
+            ]);
+            setCandidateList(candRes.candidates);
+            setUpdateEvents(notifRes.events);
+        } catch (err: any) {
+            setError(err.message || '加载数据失败');
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
-    // Cycle through agent activities to make it feel alive
+    useEffect(() => { fetchData(); }, [fetchData]);
+
+    // Cycle through agent activities
     useEffect(() => {
         const interval = setInterval(() => {
             setActivityIndex(prev => (prev + 1) % AGENT_ACTIVITIES.length);
@@ -234,44 +95,50 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
         return () => clearInterval(interval);
     }, []);
 
-    // Sync unread count to parent (for sidebar badge)
+    // Sync unread count to parent
     const unreadEvents = updateEvents.filter(e => !e.isRead);
     useEffect(() => {
         onUnreadCountChange?.(unreadEvents.length);
     }, [unreadEvents.length]);
 
-    const handleDismissEvent = (eventId: string, candidateId: string) => {
+    const handleDismissEvent = async (eventId: string, candidateId: string) => {
+        // Optimistic update
         setUpdateEvents(prev => prev.map(e => e.id === eventId ? { ...e, isRead: true } : e));
-        const evt = updateEvents.find(e => e.id === eventId);
-        if (evt) {
-            const candidate = MOCK_CANDIDATES.find(c => c.id === candidateId);
-            if (candidate?.status === CandidateStatus.DELIVERED) {
-                onNavigate(ViewState.REPORT, candidateId);
-            } else {
-                onNavigate(ViewState.ORDER_TRACKING, candidateId);
-            }
+        // Call API
+        notificationsApi.markRead(eventId).catch(() => {
+            // Revert on failure
+            setUpdateEvents(prev => prev.map(e => e.id === eventId ? { ...e, isRead: false } : e));
+        });
+        // Navigate
+        const candidate = candidateList.find(c => c.id === candidateId);
+        if (candidate?.status === CandidateStatus.DELIVERED) {
+            onNavigate(ViewState.REPORT, candidateId);
+        } else {
+            onNavigate(ViewState.ORDER_TRACKING, candidateId);
         }
     };
 
-    const handleMarkAllRead = () => {
+    const handleMarkAllRead = async () => {
+        const prevEvents = updateEvents;
         setUpdateEvents(prev => prev.map(e => ({ ...e, isRead: true })));
+        notificationsApi.markAllRead().catch(() => setUpdateEvents(prevEvents));
     };
 
     const currentActivity = AGENT_ACTIVITIES[activityIndex];
     const ActivityIcon = currentActivity.icon;
 
-    // --- Dynamic KPI counts ---
-    const proceedCount = MOCK_CANDIDATES.filter(c => c.status === CandidateStatus.DELIVERED && c.verdict === 'Proceed').length;
-    const followUpCount = MOCK_CANDIDATES.filter(c => c.status === CandidateStatus.DELIVERED && c.verdict === 'FollowUp').length;
-    const holdCount = MOCK_CANDIDATES.filter(c => c.status === CandidateStatus.DELIVERED && c.verdict === 'Hold').length;
-    const inProgressCount = MOCK_CANDIDATES.filter(c => c.status !== CandidateStatus.DELIVERED && c.status !== CandidateStatus.EXCEPTION).length;
-    const exceptionCount = MOCK_CANDIDATES.filter(c => c.status === CandidateStatus.EXCEPTION).length;
+    // KPI counts from real data
+    const proceedCount = candidateList.filter(c => c.status === CandidateStatus.DELIVERED && c.recommendation === 'Proceed').length;
+    const followUpCount = candidateList.filter(c => c.status === CandidateStatus.DELIVERED && c.recommendation === 'FollowUp').length;
+    const holdCount = candidateList.filter(c => c.status === CandidateStatus.DELIVERED && c.recommendation === 'Hold').length;
+    const inProgressCount = candidateList.filter(c => c.status !== CandidateStatus.DELIVERED && c.status !== CandidateStatus.EXCEPTION).length;
+    const exceptionCount = candidateList.filter(c => c.status === CandidateStatus.EXCEPTION).length;
 
-    // --- Filter + Search Logic ---
-    const filteredList = MOCK_CANDIDATES.filter(c => {
-        if (filter === 'PROCEED' && !(c.status === CandidateStatus.DELIVERED && c.verdict === 'Proceed')) return false;
-        if (filter === 'FOLLOW_UP' && !(c.status === CandidateStatus.DELIVERED && c.verdict === 'FollowUp')) return false;
-        if (filter === 'HOLD' && !(c.status === CandidateStatus.DELIVERED && c.verdict === 'Hold')) return false;
+    // Filter + Search
+    const filteredList = candidateList.filter(c => {
+        if (filter === 'PROCEED' && !(c.status === CandidateStatus.DELIVERED && c.recommendation === 'Proceed')) return false;
+        if (filter === 'FOLLOW_UP' && !(c.status === CandidateStatus.DELIVERED && c.recommendation === 'FollowUp')) return false;
+        if (filter === 'HOLD' && !(c.status === CandidateStatus.DELIVERED && c.recommendation === 'Hold')) return false;
         if (filter === 'IN_PROGRESS' && (c.status === CandidateStatus.DELIVERED || c.status === CandidateStatus.EXCEPTION)) return false;
         if (filter === 'EXCEPTION' && c.status !== CandidateStatus.EXCEPTION) return false;
         if (searchQuery) {
@@ -281,21 +148,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
         return true;
     });
 
-    // --- Sort: 建议面试 → 需关注 → 暂缓 → 进行中 → 异常 ---
-    const getSortPriority = (c: MockCandidate): number => {
-        if (c.status === CandidateStatus.DELIVERED && c.verdict === 'Proceed') return 0;
-        if (c.status === CandidateStatus.DELIVERED && c.verdict === 'FollowUp') return 1;
-        if (c.status === CandidateStatus.DELIVERED && c.verdict === 'Hold') return 2;
+    // Sort: Proceed → FollowUp → Hold → InProgress → Exception
+    const getSortPriority = (c: Candidate): number => {
+        if (c.status === CandidateStatus.DELIVERED && c.recommendation === 'Proceed') return 0;
+        if (c.status === CandidateStatus.DELIVERED && c.recommendation === 'FollowUp') return 1;
+        if (c.status === CandidateStatus.DELIVERED && c.recommendation === 'Hold') return 2;
         if (c.status !== CandidateStatus.DELIVERED && c.status !== CandidateStatus.EXCEPTION) return 3;
-        return 4; // EXCEPTION
+        return 4;
     };
     const sortedList = [...filteredList].sort((a, b) => getSortPriority(a) - getSortPriority(b));
 
-    const handleRowClick = (candidate: typeof MOCK_CANDIDATES[0]) => {
-        if (candidate.status === CandidateStatus.DELIVERED) {
-            onNavigate(ViewState.REPORT, candidate.id);
+    const handleRowClick = (c: Candidate) => {
+        if (c.status === CandidateStatus.DELIVERED) {
+            onNavigate(ViewState.REPORT, c.id);
         } else {
-            onNavigate(ViewState.ORDER_TRACKING, candidate.id);
+            onNavigate(ViewState.ORDER_TRACKING, c.id);
         }
     };
 
@@ -303,7 +170,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     if (browserContext === 'resume') {
         return (
             <div className="w-full h-full bg-white/95 overflow-y-auto font-sans text-slate-900">
-                {/* Header */}
                 <div className="h-14 bg-[#1f2937] flex items-center px-6 justify-between sticky top-0 z-10 shadow-md">
                     <div className="flex items-center gap-8">
                         <span className="text-[#00bebd] font-extrabold text-xl tracking-tight">BOSS</span>
@@ -318,7 +184,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                     <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-200">
                         <div className="flex justify-between items-start">
                             <div className="flex gap-6">
-                                <img src={AVATARS['4']} className="w-24 h-24 rounded-lg object-cover shadow-sm" />
+                                <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-sm">赵</div>
                                 <div className="space-y-3 pt-1">
                                     <div className="flex items-center gap-3">
                                         <h1 className="text-2xl font-bold text-slate-900">赵嘉明</h1>
@@ -338,9 +204,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
         );
     }
 
-    // RECRUITER WORKBENCH - MANAGERIAL VIEW
+    // MAIN DASHBOARD
     return (
-        // Updated: Ensure w-full h-full and scrolling happen here.
         <div className="w-full h-full bg-white/50 backdrop-blur-sm flex flex-col overflow-y-auto font-sans text-slate-900 scroll-smooth">
 
             {/* 1. AGENT STATUS BAR */}
@@ -361,19 +226,25 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                 </span>
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5 h-4">
-                                <ActivityIcon size={12} className={`transition-colors duration-500 ${currentActivity.color} ${currentActivity.spin ? 'animate-spin' : ''}`} />
+                                <ActivityIcon size={12} className={`transition-colors duration-500 ${currentActivity.color}`} />
                                 <p className="text-xs text-slate-500 transition-all duration-500">
                                     {currentActivity.text}
                                 </p>
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
 
-            {/* Updated: Reduced bottom padding from pb-20 to pb-8 to fix whitespace */}
             <div className="p-6 pb-8">
+                {/* Error state */}
+                {error && (
+                    <div className="mb-6 bg-rose-50 border border-rose-200 rounded-xl p-4 text-rose-600 text-sm">
+                        {error}
+                        <button onClick={fetchData} className="ml-3 underline font-bold">重试</button>
+                    </div>
+                )}
+
                 {/* 2. KPI Cards */}
                 <div className="mb-4 flex items-center gap-2">
                     <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -382,7 +253,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                 </div>
 
                 <div className="grid grid-cols-4 gap-4 mb-8">
-                    {/* 建议面试 */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28 group hover:shadow-md hover:border-emerald-200 transition-all cursor-pointer" onClick={() => setFilter('PROCEED')}>
                         <div className="flex justify-between items-start">
                             <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">建议面试 <InfoTip text="AI 综合评估后认为适合推进面试流程的候选人" /></span>
@@ -394,7 +264,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                         </div>
                     </div>
 
-                    {/* 需关注 */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28 group hover:shadow-md hover:border-amber-200 transition-all cursor-pointer" onClick={() => setFilter('FOLLOW_UP')}>
                         <div className="flex justify-between items-start">
                             <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">需关注 <InfoTip text="面试可推进但存在风险点，建议重点追问" /></span>
@@ -406,7 +275,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                         </div>
                     </div>
 
-                    {/* 暂缓 */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28 group hover:shadow-md hover:border-rose-200 transition-all cursor-pointer" onClick={() => setFilter('HOLD')}>
                         <div className="flex justify-between items-start">
                             <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">暂缓 <InfoTip text="AI 发现较大疑点，建议暂不推进" /></span>
@@ -418,7 +286,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                         </div>
                     </div>
 
-                    {/* 进行中 */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between h-28 group hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer" onClick={() => setFilter('IN_PROGRESS')}>
                         <div className="flex justify-between items-start">
                             <span className="text-sm font-bold text-slate-600 tracking-wide flex items-center gap-1">进行中 <InfoTip text="Ailin 正在处理中，包括待触达、面试中、分析中等" /></span>
@@ -431,10 +298,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                     </div>
                 </div>
 
-                {/* 2.5 新动态区块 — 有未读时才显示 */}
+                {/* 2.5 Notification events */}
                 {unreadEvents.length > 0 && (
                     <div className="mb-8 bg-gradient-to-r from-indigo-50/80 to-purple-50/80 border border-indigo-200/60 rounded-2xl p-5 animate-[fadeIn_0.4s_ease-out]">
-                        {/* Header */}
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
@@ -454,7 +320,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                             </button>
                         </div>
 
-                        {/* Event Cards */}
                         <div className="space-y-2.5">
                             {unreadEvents.map((evt) => {
                                 const severityConfig = {
@@ -479,10 +344,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                         onClick={() => handleDismissEvent(evt.id, evt.candidateId)}
                                         className="flex items-stretch bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group overflow-hidden"
                                     >
-                                        {/* Left color bar */}
                                         <div className={`w-1 shrink-0 ${severityConfig.bar}`} />
-
-                                        {/* Content */}
                                         <div className="flex-1 flex items-center justify-between px-4 py-3.5 min-w-0">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <SeverityIcon size={18} className={`shrink-0 ${severityConfig.iconColor}`} />
@@ -508,13 +370,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
 
                 {/* 3. Main List Section */}
                 <div className="flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    {/* Toolbar */}
                     <div className="px-6 py-5 flex items-center justify-between sticky top-0 bg-white z-20 border-b border-slate-200">
-
-                        {/* Pill Tabs */}
                         <div className="flex items-center p-1 bg-slate-100 rounded-full border border-slate-200">
                             {[
-                                { id: 'ALL', label: '全部', count: MOCK_CANDIDATES.length },
+                                { id: 'ALL', label: '全部', count: candidateList.length },
                                 { id: 'PROCEED', label: '建议面试', count: proceedCount },
                                 { id: 'FOLLOW_UP', label: '需关注', count: followUpCount },
                                 { id: 'HOLD', label: '暂缓', count: holdCount },
@@ -533,8 +392,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                 );
                             })}
                         </div>
-
-                        {/* Search */}
                         <div className="relative ml-4">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
@@ -547,7 +404,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                         </div>
                     </div>
 
-                    {/* List Header */}
                     <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                         <div className="col-span-3 pl-2">候选人</div>
                         <div className="col-span-2">状态</div>
@@ -555,7 +411,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                         <div className="col-span-2 text-right pr-2">管理操作</div>
                     </div>
 
-                    {/* Rows */}
                     <div className="divide-y divide-slate-100">
                         {isLoading && (
                             <div className="animate-pulse space-y-0 divide-y divide-slate-50">
@@ -581,37 +436,42 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                                 <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
                                     <Search size={24} className="text-slate-300" />
                                 </div>
-                                <p className="text-[15px] font-bold text-slate-400 mb-1">当前筛选条件下暂无候选人</p>
-                                <p className="text-[13px] text-slate-300">调整筛选条件或创建新任务</p>
+                                <p className="text-[15px] font-bold text-slate-400 mb-1">
+                                    {candidateList.length === 0 ? '暂无候选人' : '当前筛选条件下暂无候选人'}
+                                </p>
+                                <p className="text-[13px] text-slate-300">
+                                    {candidateList.length === 0 ? '通过 Sidebar 上传简历开始使用' : '调整筛选条件或创建新任务'}
+                                </p>
                             </div>
                         )}
                         {!isLoading && sortedList.map((c) => (
                             <div key={c.id} className="grid grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => handleRowClick(c)}>
                                 <div className="col-span-3 flex items-center gap-4 pl-2 min-w-0">
-                                    <img src={c.avatar} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm shrink-0" alt={c.name} />
+                                    {c.avatar ? (
+                                        <img src={c.avatar} className="w-12 h-12 rounded-full object-cover ring-2 ring-white shadow-sm shrink-0" alt={c.name} />
+                                    ) : (
+                                        <AvatarFallback name={c.name} />
+                                    )}
                                     <div className="min-w-0 flex-1">
                                         <h3 className="text-[16px] font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">{c.name}</h3>
-                                        <p className="text-[13px] text-slate-500 mt-0.5 font-medium truncate">{c.role} · {c.exp}</p>
+                                        <p className="text-[13px] text-slate-500 mt-0.5 font-medium truncate">{c.role}</p>
                                     </div>
                                 </div>
                                 <div className="col-span-2">
-                                    {/* 已有结果 */}
-                                    {c.status === CandidateStatus.DELIVERED && c.verdict === 'Proceed' && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 text-[13px] font-bold rounded-md whitespace-nowrap"><CheckCircle2 size={14} /> 建议面试</span>}
-                                    {c.status === CandidateStatus.DELIVERED && c.verdict === 'FollowUp' && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 text-[13px] font-bold rounded-md whitespace-nowrap"><AlertTriangle size={14} /> 需关注</span>}
-                                    {c.status === CandidateStatus.DELIVERED && c.verdict === 'Hold' && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 text-[13px] font-bold rounded-md whitespace-nowrap"><AlertTriangle size={14} /> 暂缓</span>}
-                                    {/* 进行中（合并所有中间态） */}
+                                    {c.status === CandidateStatus.DELIVERED && c.recommendation === 'Proceed' && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 text-[13px] font-bold rounded-md whitespace-nowrap"><CheckCircle2 size={14} /> 建议面试</span>}
+                                    {c.status === CandidateStatus.DELIVERED && c.recommendation === 'FollowUp' && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 text-[13px] font-bold rounded-md whitespace-nowrap"><AlertTriangle size={14} /> 需关注</span>}
+                                    {c.status === CandidateStatus.DELIVERED && c.recommendation === 'Hold' && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 text-[13px] font-bold rounded-md whitespace-nowrap"><AlertTriangle size={14} /> 暂缓</span>}
                                     {c.status !== CandidateStatus.DELIVERED && c.status !== CandidateStatus.EXCEPTION && (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 text-[13px] font-bold rounded-md whitespace-nowrap">
                                             <Loader2 size={14} className="animate-spin" /> 进行中
                                         </span>
                                     )}
-                                    {/* 异常 */}
                                     {c.status === CandidateStatus.EXCEPTION && <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-600 text-[13px] font-bold rounded-md whitespace-nowrap"><AlertTriangle size={14} /> 异常</span>}
                                 </div>
                                 <div className="col-span-5 pr-4 min-w-0">
                                     <span className="text-[14px] font-medium text-slate-600 truncate block flex items-center gap-2">
                                         {c.status === CandidateStatus.INTERVIEWING && <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span>}
-                                        {c.desc}
+                                        {STATUS_DESC[c.status as CandidateStatus] || c.status}
                                     </span>
                                 </div>
                                 <div className="col-span-2 text-right pr-2 flex justify-end">
@@ -624,7 +484,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                     </div>
                 </div>
 
-                {/* Footer Quick Action - Updated with Warm Gradient */}
                 <div className="mt-6 mb-6">
                     <button onClick={() => setBrowserContext('resume')} className="flex items-center gap-4 px-6 py-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all text-left group w-96 shadow-sm">
                         <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-indigo-600"><FileText size={24} /></div>
