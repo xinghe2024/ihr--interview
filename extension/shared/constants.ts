@@ -2,8 +2,11 @@
  * 插件常量配置
  */
 
-// IHR-NEXUS 后端 API 地址（开发环境）
+// Ailin 后端 API 地址（开发环境）
 export const NEXUS_API_BASE = 'http://localhost:3001';
+
+// Ailin Web 端地址（开发环境，生产替换为真实域名）
+export const WEB_APP_URL = 'http://localhost:3000';
 
 // 智联招聘相关
 export const ZP_COOKIE_NAME_AT = 'at';
@@ -30,6 +33,12 @@ export const MSG = {
   // Content Script → SW
   RESUME_EXTRACTED: 'RESUME_EXTRACTED',
   PAGE_CONTEXT: 'PAGE_CONTEXT',
+
+  // 内容脚本请求打开侧边栏
+  OPEN_SIDEBAR: 'OPEN_SIDEBAR',
+
+  // Web App 登录后同步 token 到插件存储
+  SYNC_TOKEN: 'SYNC_TOKEN',
 } as const;
 
 export type MessageType = typeof MSG[keyof typeof MSG];

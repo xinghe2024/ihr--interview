@@ -38,12 +38,12 @@ COPY --from=builder /app/server/dist/ ./dist/
 # 复制 package.json（node 需要识别 "type": "module"）
 COPY --from=builder /app/server/package.json ./
 
-# 创建上传目录
-RUN mkdir -p /app/uploads
+# 创建上传目录 + 日志目录
+RUN mkdir -p /app/uploads /data/logs/ailin-server
 
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=8080
 
-EXPOSE 3001
+EXPOSE 8080
 
 CMD ["node", "dist/server/src/index.js"]

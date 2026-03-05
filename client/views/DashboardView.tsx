@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ViewState, CandidateStatus, CandidateUpdateEvent } from '../../shared/types';
 import type { Candidate } from '../../shared/types';
+import type { BrowserContextInfo } from '../components/EileenSidebar';
 import { CheckCircle2, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, Activity, Sparkles, UserCheck, Radio, Search, Bell, CheckCheck } from 'lucide-react';
 import { candidates as candidatesApi, notifications as notificationsApi } from '../services/api';
 
 interface DashboardViewProps {
     onNavigate: (view: ViewState, id: string) => void;
-    browserContext: 'empty' | 'resume';
-    setBrowserContext: (ctx: 'empty' | 'resume') => void;
+    browserContext: BrowserContextInfo;
+    setBrowserContext: (ctx: BrowserContextInfo) => void;
     onUnreadCountChange?: (count: number) => void;
 }
 
@@ -167,7 +168,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     };
 
     // Resume View (Browser Context)
-    if (browserContext === 'resume') {
+    if (browserContext.mode === 'resume') {
         return (
             <div className="w-full h-full bg-white/95 overflow-y-auto font-sans text-slate-900">
                 <div className="h-14 bg-[#1f2937] flex items-center px-6 justify-between sticky top-0 z-10 shadow-md">
@@ -414,7 +415,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                     <div className="divide-y divide-slate-100">
                         {isLoading && (
                             <div className="animate-pulse space-y-0 divide-y divide-slate-50">
-                                {[1,2,3,4,5].map(i => (
+                                {[1, 2, 3, 4, 5].map(i => (
                                     <div key={i} className="grid grid-cols-12 gap-4 px-6 py-5 items-center">
                                         <div className="col-span-3 flex items-center gap-4 pl-2">
                                             <div className="w-12 h-12 bg-slate-200 rounded-full shrink-0" />
@@ -485,7 +486,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
                 </div>
 
                 <div className="mt-6 mb-6">
-                    <button onClick={() => setBrowserContext('resume')} className="flex items-center gap-4 px-6 py-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all text-left group w-96 shadow-sm">
+                    <button onClick={() => setBrowserContext({ mode: 'resume', candidateName: '赵嘉明', candidateRole: 'Java 架构师' })} className="flex items-center gap-4 px-6 py-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-md transition-all text-left group w-96 shadow-sm">
                         <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-indigo-600"><FileText size={24} /></div>
                         <div><div className="text-[15px] font-bold text-slate-900">查看候选人简历 (示例)</div><div className="text-[13px] text-slate-500 mt-0.5">来源：Boss直聘</div></div>
                         <ArrowRight size={20} className="ml-auto text-slate-300 group-hover:text-indigo-500" />

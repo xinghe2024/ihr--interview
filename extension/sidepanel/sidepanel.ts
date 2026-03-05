@@ -1,110 +1,66 @@
 /**
- * Side Panel 脚本
- * 艾琳 Sidebar Agent 交互界面
+ * Side Panel 桥接脚本
+ * 负责将 Chrome 扩展的 auth 状态和页面上下文传递给 iframe 内的 Web App
  */
-import { MSG } from '../shared/constants.js';
-import type { AuthState } from '../shared/auth.js';
+import { STORAGE_KEY_JWT, STORAGE_KEY_REFRESH, STORAGE_KEY_USER } from '../shared/constants.js';
 
-const $status = document.getElementById('sp-status')!;
-const $notLogged = document.getElementById('sp-not-logged')!;
-const $chatArea = document.getElementById('sp-chat-area')!;
-const $inputArea = document.getElementById('sp-input')!;
-const $msgInput = document.getElementById('sp-msg-input') as HTMLInputElement;
-const $btnSend = document.getElementById('sp-btn-send') as HTMLButtonElement;
+const SIDEBAR_ORIGIN = 'http://localhost:3000';
+const frame = document.getElementById('sidebar-frame') as HTMLIFrameElement;
 
-// ─── 初始化 ──────────────────────────────────────
+// ── iframe 加载完成后注入 Auth ────────────────────────
 
-async function init() {
-  const state = await chrome.runtime.sendMessage({ type: MSG.GET_AUTH_STATUS }) as AuthState;
+frame.addEventListener('load', async () => {
+  const [sessionData, localData] = await Promise.all([
+    chrome.storage.session.get(STORAGE_KEY_JWT),
+    chrome.storage.local.get([STORAGE_KEY_REFRESH, STORAGE_KEY_USER]),
+  ]);
 
-  if (state.isLoggedIn) {
-    showChat(state);
-  } else {
-    showNotLogged();
+  const token = sessionData[STORAGE_KEY_JWT];
+  const user = localData[STORAGE_KEY_USER];
+  const refreshToken = localData[STORAGE_KEY_REFRESH];
+
+  if (token && user) {
+    frame.contentWindow?.postMessage(
+      { type: 'INJECT_AUTH', token, refreshToken, user },
+      SIDEBAR_ORIGIN
+    );
   }
-}
 
-function showNotLogged() {
-  $status.textContent = '未连接';
-  $notLogged.style.display = '';
-  $chatArea.style.display = 'none';
-  $inputArea.style.display = 'none';
-}
+  // 同时发送当前 tab 的页面上下文
+  sendBrowserContext();
+});
 
-function showChat(state: AuthState) {
-  $status.textContent = state.user?.name ? `${state.user.name} 已连接` : '已连接';
-  $notLogged.style.display = 'none';
-  $chatArea.style.display = '';
-  $inputArea.style.display = '';
-}
+// ── 获取当前 Tab 上下文并发给 iframe ─────────────────
 
-function addMessage(role: 'ai' | 'user', content: string) {
-  const div = document.createElement('div');
-  div.className = `message ${role}`;
-  div.innerHTML = `<div class="bubble">${escapeHtml(content)}</div>`;
-  $chatArea.appendChild(div);
-  $chatArea.scrollTop = $chatArea.scrollHeight;
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// ─── 发送消息 ─────────────────────────────────────
-
-async function sendMessage() {
-  const content = $msgInput.value.trim();
-  if (!content) return;
-
-  $msgInput.value = '';
-  addMessage('user', content);
-
-  $btnSend.disabled = true;
-
-  // 获取页面上下文
-  let browserContext;
+async function sendBrowserContext() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      browserContext = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTEXT' });
-    }
-  } catch { /* content script 可能不在 */ }
-
-  // 通过 SW 代理 API 请求
-  const result = await chrome.runtime.sendMessage({
-    type: MSG.API_REQUEST,
-    payload: {
-      path: '/api/chat/messages',
-      options: {
-        method: 'POST',
-        body: { content, browserContext },
-      },
-    },
-  });
-
-  $btnSend.disabled = false;
-
-  if (result?.success && result.data?.aiReply) {
-    addMessage('ai', result.data.aiReply.content);
-  } else {
-    addMessage('ai', '抱歉，请求失败了。请检查网络连接后重试。');
+    if (!tab?.id) return;
+    const ctx = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTEXT' });
+    const isResume = !!ctx?.currentUrl?.includes('rd6.zhaopin.com/resume');
+    frame.contentWindow?.postMessage(
+      { type: 'BROWSER_CONTEXT', context: isResume ? 'resume' : 'empty' },
+      SIDEBAR_ORIGIN
+    );
+  } catch {
+    // content script 不在当前页面或 tab 无法访问，忽略
   }
 }
 
-// ─── 事件绑定 ─────────────────────────────────────
+// ── 监听 storage 变化，用户在其他 Tab 登录后自动更新侧边栏 ──
 
-$btnSend.addEventListener('click', sendMessage);
-$msgInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  const newJwt = area === 'session' ? changes[STORAGE_KEY_JWT]?.newValue : undefined;
+  if (!newJwt) return;
+
+  const localData = await chrome.storage.local.get([STORAGE_KEY_REFRESH, STORAGE_KEY_USER]);
+  const user = localData[STORAGE_KEY_USER];
+  const refreshToken = localData[STORAGE_KEY_REFRESH];
+
+  if (user) {
+    frame.contentWindow?.postMessage(
+      { type: 'INJECT_AUTH', token: newJwt, refreshToken, user },
+      SIDEBAR_ORIGIN
+    );
   }
 });
-
-document.getElementById('sp-btn-login')!.addEventListener('click', () => {
-  chrome.action.openPopup();
-});
-
-init();

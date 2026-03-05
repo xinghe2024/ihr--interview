@@ -6,6 +6,7 @@ networks:
 # ─── 持久化存储 ────────────────────────────────────────
 volumes:
   uploads:
+  logs:
 
 services:
 
@@ -15,19 +16,22 @@ services:
       context: .
       dockerfile: server/Dockerfile
     expose:
-      - "3001"
+      - "8080"
     env_file:
       - .env
     environment:
       NODE_ENV: production
+      PORT: 8080
       UPLOAD_DIR: /app/uploads
+      LOG_DIR: /data/logs/ailin-server
     volumes:
       - uploads:/app/uploads
+      - logs:/data/logs/ailin-server
     networks:
       - ailin-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ViewState } from '../../shared/types';
+import type { BrowserContextInfo } from '../components/EileenSidebar';
 import DashboardView from '../views/DashboardView';
 import CandidateMobileView from '../views/CandidateMobileView';
 import InitiationView from '../views/InitiationView';
@@ -10,8 +11,8 @@ interface CanvasAreaProps {
   selectedCandidateId: string | null;
   interviewSessionId?: string | null;
   onNavigate: (view: ViewState, id?: string) => void;
-  browserContext: 'empty' | 'resume';
-  setBrowserContext: (ctx: 'empty' | 'resume') => void;
+  browserContext: BrowserContextInfo;
+  setBrowserContext: (ctx: BrowserContextInfo) => void;
   onUnreadCountChange?: (count: number) => void;
 }
 

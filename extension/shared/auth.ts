@@ -122,14 +122,17 @@ export async function getJwt(): Promise<string | null> {
 
 /** 获取认证状态 */
 export async function getAuthState(): Promise<AuthState> {
-  const zpToken = await getZpAccessToken();
-  const jwtResult = await chrome.storage.session.get(STORAGE_KEY_JWT);
-  const userResult = await chrome.storage.local.get(STORAGE_KEY_USER);
+  // 使用 getJwt() 的完整 fallback 链：session → refresh → ZP cookie
+  // 避免 SW 重启后 session 清空导致已登录用户被误判为未登录
+  const [jwt, userResult] = await Promise.all([
+    getJwt(),
+    chrome.storage.local.get(STORAGE_KEY_USER),
+  ]);
 
   return {
-    isLoggedIn: !!jwtResult[STORAGE_KEY_JWT],
+    isLoggedIn: !!jwt,
     user: userResult[STORAGE_KEY_USER] || null,
-    hasZpCookie: !!zpToken,
+    hasZpCookie: false,
   };
 }
 

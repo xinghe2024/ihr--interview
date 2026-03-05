@@ -46,6 +46,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setForceLogoutCallback(doLogout);
     }, []);
 
+    // 插件侧边栏模式：接收来自 sidepanel wrapper 的 JWT 注入
+    useEffect(() => {
+        const isSidebarMode = new URLSearchParams(window.location.search).get('mode') === 'sidebar';
+        if (!isSidebarMode) return;
+
+        const handler = (e: MessageEvent) => {
+            if (e.data?.type === 'INJECT_AUTH' && e.data.token && e.data.user) {
+                storeAuth(e.data.token, e.data.refreshToken || '', e.data.user);
+                setUser(e.data.user);
+                setIsLoading(false);
+            }
+        };
+        window.addEventListener('message', handler);
+        return () => window.removeEventListener('message', handler);
+    }, []);
+
     // On mount: restore session from localStorage
     useEffect(() => {
         const restore = async () => {

@@ -55,14 +55,14 @@ document.getElementById('btn-goto-zp')!.addEventListener('click', () => {
 document.getElementById('btn-connect')!.addEventListener('click', async () => {
   const btn = document.getElementById('btn-connect') as HTMLButtonElement;
   btn.disabled = true;
-  btn.textContent = '连接中...';
+  btn.textContent = '激活中...';
 
   const result = await chrome.runtime.sendMessage({ type: MSG.LOGIN_WITH_ZP }) as AuthState & { success?: boolean; error?: string };
 
   if (result.success === false) {
     btn.disabled = false;
-    btn.textContent = '授权连接';
-    alert(result.error === 'NO_ZP_COOKIE' ? '智联登录态已过期，请重新登录智联招聘' : '连接失败，请稍后重试');
+    btn.textContent = '一键激活';
+    alert(result.error === 'NO_ZP_COOKIE' ? '智联登录已过期，请重新登录后再试' : '激活失败，请稍后重试');
     return;
   }
 

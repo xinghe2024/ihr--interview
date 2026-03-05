@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>艾琳 AI 招聘助理</title>
+  <title>Ailin AI 招聘助理</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -98,54 +98,44 @@
 </head>
 <body>
   <div class="header">
-    <h1>艾琳 AI 招聘助理</h1>
-    <p>IHR-NEXUS Chrome Extension</p>
+    <h1>Ailin</h1>
+    <p>你的 AI 招聘助理</p>
   </div>
 
   <div class="content">
     <!-- 加载状态 -->
-    <div id="loading" class="loading">检测登录状态...</div>
+    <div id="loading" class="loading">准备中...</div>
 
     <!-- 未登录智联 -->
     <div id="no-zp" class="hidden">
       <div class="status-card">
         <div class="status-row">
-          <span class="dot red"></span>
-          <span>未检测到智联招聘登录态</span>
+          <span class="dot yellow"></span>
+          <span>登录智联招聘后，即可一键激活</span>
         </div>
       </div>
-      <button class="btn btn-primary" id="btn-goto-zp">前往智联招聘登录</button>
+      <button class="btn btn-primary" id="btn-goto-zp">前往智联招聘</button>
     </div>
 
-    <!-- 有智联 cookie 但未连接 NEXUS -->
+    <!-- 有智联 cookie 但未激活 -->
     <div id="zp-not-linked" class="hidden">
       <div class="status-card">
         <div class="status-row">
           <span class="dot green"></span>
-          <span>已检测到智联招聘登录态</span>
-        </div>
-        <div class="status-row">
-          <span class="dot yellow"></span>
-          <span>尚未授权连接艾琳</span>
+          <span>已识别你的智联身份</span>
         </div>
       </div>
-      <button class="btn btn-primary" id="btn-connect">授权连接</button>
+      <button class="btn btn-primary" id="btn-connect">一键激活</button>
     </div>
 
-    <!-- 已登录 -->
+    <!-- 已就绪 -->
     <div id="logged-in" class="hidden">
-      <div class="status-card">
-        <div class="status-row">
-          <span class="dot green"></span>
-          <span>已连接艾琳</span>
-        </div>
-      </div>
       <div class="user-info">
         <div class="name" id="user-name"></div>
         <div class="detail" id="user-detail"></div>
       </div>
-      <button class="btn btn-secondary" id="btn-sidepanel">打开侧边栏</button>
-      <button class="btn btn-danger" id="btn-logout">断开连接</button>
+      <button class="btn btn-primary" id="btn-sidepanel">打开侧边栏</button>
+      <button class="btn btn-danger" id="btn-logout">退出登录</button>
     </div>
   </div>
 

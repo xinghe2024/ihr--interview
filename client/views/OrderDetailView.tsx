@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ViewState, CandidateStatus, EventCode, Observation, ResumeSection, KSQItem, BaselineCoverage } from '../../shared/types';
-import type { CandidateDetailResponse, TimelineEvent } from '../../shared/types';
+import { ViewState, CandidateStatus, EventCode, Observation, KSQItem, BaselineCoverage } from '../../shared/types';
+import type { CandidateDetailResponse, TimelineEvent, DetailedResume, WorkExperience, ProjectExperience, Education } from '../../shared/types';
 import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, AlertTriangle, AlertOctagon, RefreshCw, Copy, Bell, MoreHorizontal, XCircle, UserCheck, Mic2, Play, Pause, Download, Briefcase, MapPin, MessageSquare, Link, PhoneForwarded, RotateCcw, Loader2, GraduationCap, DollarSign, Search } from 'lucide-react';
 import RedPenCard from '../components/RedPenCard';
 import { useNotification } from '../contexts/NotificationContext';
@@ -61,7 +61,7 @@ function timelineToLogs(events: TimelineEvent[]): TimelineLog[] {
         eventCode: evt.eventCode as EventCode | undefined,
         type: evt.eventCode === EventCode.INTERVIEW_EXCEPTION ? 'error' as const
             : evt.eventCode === EventCode.REPORT_DELIVERED ? 'success' as const
-            : 'default' as const,
+                : 'default' as const,
     }));
 }
 
@@ -169,21 +169,32 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
 
     // Data from API (with fallback empty arrays for pre-report states)
     const observations: Observation[] = apiData?.observations || [];
-    const resumeSections: ResumeSection[] = apiData?.resume?.sections || [];
+    const resume: DetailedResume | undefined = apiData?.resume as DetailedResume | undefined;
     const transcript: Array<{ speaker: string; text: string; time: string; highlight?: string }> = []; // Transcript not in MVP API yet
 
-    // AI Recommendation Logic
+    // AI Recommendation — use backend Report Agent result, fallback to simple heuristic
     const getAIRecommendation = () => {
+        const backendRec = apiData?.candidate?.recommendation;
+        if (backendRec === 'Proceed') return { type: 'Proceed' as const };
+        if (backendRec === 'FollowUp') return { type: 'FollowUp' as const };
+        if (backendRec === 'Hold') return { type: 'Hold' as const };
+        // Fallback: simple heuristic if backend hasn't set recommendation
         const contradictory = observations.filter(o => o.signalType === 'CONTRADICTORY').length;
         const hesitant = observations.filter(o => o.signalType === 'HESITANT').length;
-        const followUps = observations.filter(o => o.nextQuestion).length;
-        if (contradictory > 0) return { type: 'FollowUp' as const };
-        if (hesitant > 1 || followUps > 3) return { type: 'FollowUp' as const };
+        if (contradictory > 0) return { type: 'Hold' as const };
+        if (hesitant > 1) return { type: 'FollowUp' as const };
         return { type: 'Proceed' as const };
     };
 
-    const coreSummary = apiData?.candidate ? '报告数据来自 AI 分析引擎' : '';
+    // AI summary from timeline REPORT_READY event
+    const reportReadyEvent = (apiData?.timeline || []).find(t => t.eventCode === EventCode.REPORT_READY);
+    const coreSummary = reportReadyEvent?.detail?.replace(/^推荐: \w+ — /, '') || (apiData?.candidate ? '报告数据来自 AI 分析引擎' : '');
     const followUpQuestions = observations.filter(o => o.nextQuestion);
+
+    // Structured resume data
+    const workExperiences: WorkExperience[] = resume?.workExperiences || [];
+    const projectExperiences: ProjectExperience[] = resume?.projectExperiences || [];
+    const educations: Education[] = resume?.educations || [];
 
     // KSQ Results & Baseline Coverage from API
     const ksqResults: KSQItem[] = apiData?.ksqResults || [];
@@ -267,7 +278,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                         {/* Skeleton: KSQ */}
                         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-3">
                             <div className="h-3 w-24 bg-slate-200 rounded" />
-                            {[1,2,3].map(i => (
+                            {[1, 2, 3].map(i => (
                                 <div key={i} className="flex items-center gap-3">
                                     <div className="w-5 h-5 bg-slate-200 rounded-full shrink-0" />
                                     <div className="h-3 bg-slate-100 rounded flex-1" />
@@ -277,7 +288,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                         </div>
                         {/* Skeleton: Resume sections */}
                         <div className="rounded-xl border border-slate-200 bg-white p-6 space-y-4">
-                            {[1,2,3,4].map(i => (
+                            {[1, 2, 3, 4].map(i => (
                                 <div key={i} className="space-y-2">
                                     <div className="h-3 w-20 bg-slate-200 rounded" />
                                     <div className="h-2 bg-slate-50 rounded w-full" />
@@ -308,22 +319,28 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
                                         <h1 className="text-lg font-bold text-slate-900 tracking-tight">
-                                            {resumeSections.find(s => s.type === 'header')?.content?.name || name}
+                                            {resume?.basicProfile?.name || name}
                                         </h1>
                                         <span className="text-[13px] text-slate-500 font-medium">
-                                            {resumeSections.find(s => s.type === 'header')?.content?.role || role}
+                                            {role}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-3 text-[12px] text-slate-500">
-                                        <span className="flex items-center gap-1"><GraduationCap size={13} className="text-slate-400" />本科</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span className="flex items-center gap-1"><Briefcase size={13} className="text-slate-400" />5年经验</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span className="flex items-center gap-1"><DollarSign size={13} className="text-slate-400" />29-35K</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span className="flex items-center gap-1"><Clock size={13} className="text-slate-400" />1个月内到岗</span>
-                                        <span className="text-slate-300">·</span>
-                                        <span className="flex items-center gap-1"><Phone size={13} className="text-slate-400" />{resumeSections.find(s => s.type === 'header')?.content?.contact?.split('·')[0]?.trim()}</span>
+                                    <div className="flex items-center gap-3 text-[12px] text-slate-500 flex-wrap">
+                                        {resume?.basicProfile?.highestEducation && (
+                                            <><span className="flex items-center gap-1"><GraduationCap size={13} className="text-slate-400" />{resume.basicProfile.highestEducation}</span><span className="text-slate-300">·</span></>
+                                        )}
+                                        {resume?.basicProfile?.workYears != null && (
+                                            <><span className="flex items-center gap-1"><Briefcase size={13} className="text-slate-400" />{resume.basicProfile.workYears}年经验</span><span className="text-slate-300">·</span></>
+                                        )}
+                                        {resume?.jobPreference?.expectedSalaryRange && (
+                                            <><span className="flex items-center gap-1"><DollarSign size={13} className="text-slate-400" />{resume.jobPreference.expectedSalaryRange}</span><span className="text-slate-300">·</span></>
+                                        )}
+                                        {resume?.basicProfile?.currentCity && (
+                                            <><span className="flex items-center gap-1"><MapPin size={13} className="text-slate-400" />{resume.basicProfile.currentCity}</span><span className="text-slate-300">·</span></>
+                                        )}
+                                        {resume?.contact?.phone && (
+                                            <span className="flex items-center gap-1"><Phone size={13} className="text-slate-400" />{resume.contact.phone}</span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -422,27 +439,77 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                             )}
                         </div>
 
-                        {/* ===== Annotated Resume (merged white container) ===== */}
-                        <div className="bg-white rounded-xl border border-slate-200/80 divide-y divide-slate-100">
-                            {resumeSections.filter(s => s.type !== 'header').map((s) => {
-                                const isSectionActive = activeSectionId && (activeSectionId === s.id || activeSectionId.startsWith(s.id));
-                                return (
-                                    <div key={s.id} id={`resume-section-${s.id}`}
-                                        className={`p-5 transition-all duration-300 ${isSectionActive ? 'bg-indigo-50/30' : ''}`}>
-                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                            {s.type === 'work' && <><Briefcase size={14} /> 工作经历</>}
-                                            {s.type === 'project' && <><Briefcase size={14} /> 项目经验</>}
-                                            {s.type === 'education' && <><Briefcase size={14} /> 教育背景</>}
-                                        </h3>
-                                        {(s.type === 'work' || s.type === 'project') && (
-                                            <div>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="text-[15px] font-bold text-slate-900">{s.content.company || s.content.name}</h4>
-                                                    <span className="text-[12px] font-medium text-slate-400 font-mono">{s.content.time}</span>
+                        {/* ===== ③ 关键观察区（Observation Cards grouped by signal） ===== */}
+                        {observations.length > 0 && (
+                            <div className="space-y-4">
+                                {/* Risk signals first */}
+                                {(() => {
+                                    const riskObs = observations.filter(o => o.signalType !== 'CONFIDENT');
+                                    const confidentObs = observations.filter(o => o.signalType === 'CONFIDENT');
+                                    return (
+                                        <>
+                                            {riskObs.length > 0 && (
+                                                <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+                                                    <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                                                        <AlertTriangle size={14} className="text-amber-500" />
+                                                        <span className="text-xs font-bold text-slate-700 tracking-wide">风险信号</span>
+                                                        <span className="text-[11px] font-medium px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full border border-amber-100">
+                                                            {riskObs.length} 项
+                                                        </span>
+                                                    </div>
+                                                    <div className="p-4 grid gap-3">
+                                                        {riskObs.map(obs => (
+                                                            <div key={obs.id} onClick={() => obs.relatedSectionId ? openEvidenceFor(obs.relatedSectionId) : setIsEvidencePanelOpen(true)}>
+                                                                <RedPenCard data={obs} isHighlighted={activeSectionId === obs.relatedSectionId} />
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <div className="text-[13px] text-slate-500 font-medium mb-3">{s.content.role}</div>
-                                                <ul className="space-y-2.5">
-                                                    {s.content.desc?.map((line: any) => {
+                                            )}
+                                            {confidentObs.length > 0 && (
+                                                <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden">
+                                                    <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                                                        <CheckCircle2 size={14} className="text-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-700 tracking-wide">扎实表现</span>
+                                                        <span className="text-[11px] font-medium px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                                                            {confidentObs.length} 项
+                                                        </span>
+                                                    </div>
+                                                    <div className="p-4 grid gap-3">
+                                                        {confidentObs.map(obs => (
+                                                            <div key={obs.id} onClick={() => obs.relatedSectionId ? openEvidenceFor(obs.relatedSectionId) : setIsEvidencePanelOpen(true)}>
+                                                                <RedPenCard data={obs} isHighlighted={activeSectionId === obs.relatedSectionId} />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
+
+                        {/* ===== ⑤ 批注简历（从 DetailedResume 结构读取） ===== */}
+                        <div className="bg-white rounded-xl border border-slate-200/80 divide-y divide-slate-100">
+                            {/* --- 工作经历 --- */}
+                            {workExperiences.length > 0 && (
+                                <div className="p-5">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <Briefcase size={14} /> 工作经历
+                                    </h3>
+                                    <div className="space-y-6">
+                                        {workExperiences.map((w) => (
+                                            <div key={w.id} id={`resume-section-${w.id}`}>
+                                                <div className="flex justify-between items-start mb-1.5">
+                                                    <h4 className="text-[15px] font-bold text-slate-900">{w.companyName}</h4>
+                                                    <span className="text-[12px] font-medium text-slate-400 font-mono shrink-0 ml-3">
+                                                        {w.startDate} — {w.endDate || '至今'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-[13px] text-slate-500 font-medium mb-3">{w.position}</div>
+                                                <ul className="space-y-2">
+                                                    {w.descriptions.map((line) => {
                                                         const linkedObs = observations.find(o => o.relatedSectionId === line.id);
                                                         const isRisk = line.status === 'risk';
                                                         const isLineActive = activeSectionId === line.id;
@@ -458,10 +525,92 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
                                                     })}
                                                 </ul>
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            )}
+
+                            {/* --- 项目经历 --- */}
+                            {projectExperiences.length > 0 && (
+                                <div className="p-5">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <FileText size={14} /> 项目经验
+                                    </h3>
+                                    <div className="space-y-6">
+                                        {projectExperiences.map((p) => (
+                                            <div key={p.id} id={`resume-section-${p.id}`}>
+                                                <div className="flex justify-between items-start mb-1.5">
+                                                    <h4 className="text-[15px] font-bold text-slate-900">{p.name}</h4>
+                                                    <span className="text-[12px] font-medium text-slate-400 font-mono shrink-0 ml-3">
+                                                        {p.startDate} — {p.endDate || '至今'}
+                                                    </span>
+                                                </div>
+                                                {p.background && <div className="text-[12px] text-slate-400 mb-2">{p.background}</div>}
+                                                {p.responsibilities && p.responsibilities.length > 0 && (
+                                                    <ul className="space-y-1.5 mb-2">
+                                                        {p.responsibilities.map((r, idx) => (
+                                                            <li key={idx} className="text-sm leading-relaxed text-slate-700 pl-3 border-l-[3px] border-l-transparent">
+                                                                {r}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                                {p.outcomes && p.outcomes.length > 0 && (
+                                                    <ul className="space-y-1.5">
+                                                        {p.outcomes.map((o, idx) => (
+                                                            <li key={idx} className="text-sm leading-relaxed text-emerald-700 pl-3 border-l-[3px] border-l-emerald-300 bg-emerald-50/30 py-1 px-3 rounded-r-md">
+                                                                📊 {o}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- 教育背景 --- */}
+                            {educations.length > 0 && (
+                                <div className="p-5">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <GraduationCap size={14} /> 教育背景
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {educations.map((edu) => (
+                                            <div key={edu.id} className="flex items-baseline justify-between">
+                                                <div>
+                                                    <span className="text-[14px] font-bold text-slate-800">{edu.school}</span>
+                                                    {edu.schoolTier && <span className="ml-2 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{edu.schoolTier}</span>}
+                                                    <span className="text-[13px] text-slate-500 ml-3">{edu.major} · {edu.degree}</span>
+                                                </div>
+                                                <span className="text-[12px] font-medium text-slate-400 font-mono shrink-0 ml-3">
+                                                    {edu.startDate} — {edu.endDate}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* --- 技能标签 --- */}
+                            {resume?.skills && resume.skills.length > 0 && (
+                                <div className="p-5">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        技能
+                                    </h3>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {resume.skills.map((skill, idx) => (
+                                            <span key={idx} className={`text-[12px] font-medium px-2.5 py-1 rounded-full border ${skill.proficiency === '精通' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                                skill.proficiency === '熟悉' ? 'bg-sky-50 text-sky-700 border-sky-100' :
+                                                    'bg-slate-50 text-slate-600 border-slate-100'
+                                                }`}>
+                                                {skill.name}{skill.proficiency ? ` · ${skill.proficiency}` : ''}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

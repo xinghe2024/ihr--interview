@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "艾琳 AI 招聘助理",
-  "description": "IHR-NEXUS Chrome 插件 — 智联招聘一键初筛",
+  "name": "Ailin AI 招聘助理",
+  "description": "在招聘网站侧边栏实时解析简历亮点，一键发起 15 分钟 AI 初面，自动生成结构化评估报告",
   "version": "1.0.0",
   "permissions": [
     "cookies",
@@ -25,13 +25,17 @@
         "https://*.zhaopin.com/*"
       ],
       "js": ["content/zhaopin.js"]
+    },
+    {
+      "matches": ["http://localhost:3000/*"],
+      "js": ["content/webapp.js"],
+      "run_at": "document_start"
     }
   ],
   "side_panel": {
     "default_path": "sidepanel/sidepanel.html"
   },
   "action": {
-    "default_popup": "popup/popup.html",
     "default_icon": {
       "32": "icons/icon-32.png",
       "128": "icons/icon-128.png"

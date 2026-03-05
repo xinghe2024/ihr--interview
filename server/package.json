@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc && tsc-alias",
-    "start": "node dist/server/src/index.js",
+    "start": "NODE_ENV=production node dist/server/src/index.js",
+    "start:qa": "NODE_ENV=production node dist/server/src/index.js",
+    "start:pre": "NODE_ENV=production node dist/server/src/index.js",
     "typecheck": "tsc --noEmit",
     "test:batch": "tsx scripts/batch-test.ts",
     "test:batch:quick": "tsx scripts/batch-test.ts --limit 1",
@@ -21,6 +23,8 @@
     "openai": "^6.25.0",
     "pdf-parse": "^1.1.1",
     "uuid": "^11.1.0",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

@@ -1,10 +1,10 @@
 /**
  * Sidebar Agent
- * HR 侧边栏对话 Agent（function-calling 模式）
- * MVP 阶段简化实现：关键词匹配 + LLM 回复
+ * HR 侧边栏对话 Agent — function-calling 模式
  */
-import { chat } from '../services/llmService.js';
-import { SIDEBAR_SYSTEM_PROMPT } from '../prompts/sidebar.js';
+import { chatWithTools } from '../services/llmService.js';
+import { SIDEBAR_SYSTEM_PROMPT, SIDEBAR_TOOLS } from '../prompts/sidebar.js';
+import { getToolHandler, type ToolContext, type ToolResult } from '../services/sidebarToolHandlers.js';
 import { getEnv } from '../config/env.js';
 import { getSupabase } from '../config/database.js';
 import type { ChatAgentAction } from '@shared/types.js';
@@ -21,6 +21,7 @@ export async function processSidebarMessage(
   userId: string,
   message: string,
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
+  browserContext?: { currentUrl?: string; pageTitle?: string; selectedText?: string },
 ): Promise<SidebarResponse> {
   const env = getEnv();
 
@@ -28,22 +29,54 @@ export async function processSidebarMessage(
     return mockSidebarResponse(userId, message);
   }
 
-  // 真实 LLM
-  const messages = history.map(m => ({
-    role: m.role as 'user' | 'assistant',
-    content: m.content,
-  }));
+  // 工具执行上下文
+  const toolCtx: ToolContext = { userId, browserContext };
 
-  const reply = await chat(message, {
-    systemPrompt: SIDEBAR_SYSTEM_PROMPT,
-    messages,
+  // 收集所有工具产生的前端 actions
+  const collectedActions: ChatAgentAction[] = [];
+
+  // 注入浏览器上下文到 system prompt
+  let systemPrompt = SIDEBAR_SYSTEM_PROMPT;
+  if (browserContext) {
+    const ctxStr = [
+      browserContext.currentUrl && `- 当前页面: ${browserContext.currentUrl}`,
+      browserContext.pageTitle && `- 页面标题: ${browserContext.pageTitle}`,
+      browserContext.selectedText && `- 选中文本: ${browserContext.selectedText}`,
+    ].filter(Boolean).join('\n');
+    systemPrompt = systemPrompt.replace('{browserContext}', ctxStr || '（无上下文信息）');
+  } else {
+    systemPrompt = systemPrompt.replace('{browserContext}', '（无上下文信息）');
+  }
+
+  // 执行 tool-calling 循环
+  const result = await chatWithTools(message, {
+    systemPrompt,
+    messages: history.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    tools: SIDEBAR_TOOLS,
     temperature: 0.5,
+    maxIterations: 3,
+    executeToolCall: async (name, args) => {
+      console.log(`[Sidebar Agent] LLM called tool: ${name}`, JSON.stringify(args));
+      const handler = getToolHandler(name);
+      if (!handler) {
+        console.log(`[Sidebar Agent] Unknown tool: ${name}`);
+        return JSON.stringify({ error: `未知工具: ${name}` });
+      }
+
+      const toolResult: ToolResult = await handler(args, toolCtx);
+
+      if (toolResult.actions) {
+        collectedActions.push(...toolResult.actions);
+      }
+
+      return JSON.stringify(toolResult.data);
+    },
   });
 
-  // 简单检测是否包含导航意图
-  const actions = detectActions(reply, message);
-
-  return { content: reply, actions };
+  return {
+    content: result.content,
+    actions: collectedActions.length > 0 ? collectedActions : undefined,
+  };
 }
 
 /**
@@ -52,7 +85,6 @@ export async function processSidebarMessage(
 async function mockSidebarResponse(userId: string, message: string): Promise<SidebarResponse> {
   const lower = message.toLowerCase();
 
-  // 查询候选人
   if (lower.includes('候选人') && (lower.includes('查') || lower.includes('找') || lower.includes('搜'))) {
     try {
       const db = getSupabase();
@@ -70,36 +102,15 @@ async function mockSidebarResponse(userId: string, message: string): Promise<Sid
     }
   }
 
-  // 通知
   if (lower.includes('通知') || lower.includes('动态') || lower.includes('消息')) {
-    return {
-      content: '(mock) 您目前没有未读通知。',
-    };
+    return { content: '(mock) 您目前没有未读通知。' };
   }
 
-  // 统计
   if (lower.includes('统计') || lower.includes('多少') || lower.includes('概况')) {
-    return {
-      content: '(mock) 待触达: 0, 面试中: 0, 已交付: 0。配置数据库后可查看真实数据。',
-    };
+    return { content: '(mock) 待触达: 0, 面试中: 0, 已交付: 0。配置数据库后可查看真实数据。' };
   }
 
-  // 默认回复
   return {
     content: `(mock) 收到你的消息："${message.slice(0, 50)}"。我可以帮你查询候选人、查看通知、或者创建面试邀约。请问需要什么帮助？`,
   };
-}
-
-/** 从回复中检测导航 action */
-function detectActions(reply: string, userMessage: string): ChatAgentAction[] | undefined {
-  const actions: ChatAgentAction[] = [];
-
-  if (userMessage.includes('报告') || reply.includes('查看报告')) {
-    actions.push({ type: 'show_report', payload: {} });
-  }
-  if (userMessage.includes('面板') || userMessage.includes('总览')) {
-    actions.push({ type: 'navigate', payload: { page: 'dashboard' } });
-  }
-
-  return actions.length > 0 ? actions : undefined;
 }

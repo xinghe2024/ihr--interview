@@ -301,6 +301,10 @@ export interface DetailedResume {
 }
 
 // 🆕 Structure for Parsed Resume Content
+/**
+ * @deprecated 旧版简历 section 格式，已被 DetailedResume 替代。
+ * 仅 ReportView.tsx（遗留 demo 页面）仍引用此类型，生产代码不应使用。
+ */
 export interface ResumeSection {
   id: string;
   type: 'header' | 'basic' | 'contact' | 'jobPreference' | 'summary' | 'work' | 'workList' | 'project' | 'projectList' | 'education' | 'strengths' | 'training' | 'languages' | 'certificates' | 'skills';

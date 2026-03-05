@@ -23,18 +23,23 @@ chatRoutes.post('/messages', async (c) => {
   const db = getSupabase();
   const body = await c.req.json();
   const content = body.content as string;
+  const browserContext = body.browserContext as {
+    currentUrl?: string; pageTitle?: string; selectedText?: string;
+  } | undefined;
 
   if (!content?.trim()) {
     return c.json(apiResponse(null, { code: 'VALIDATION', message: '消息内容不能为空' }), 400);
   }
 
-  // 获取历史
+  // 获取最近 10 条历史（降序取，再翻转为时间正序）
   const { data: historyRows } = await db
     .from('chat_history')
     .select('role, content')
     .eq('user_id', user.userId)
-    .order('created_at', { ascending: true })
-    .limit(20); // 最近 20 条
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  historyRows?.reverse();
 
   const history = (historyRows ?? []).map((r: any) => ({
     role: r.role as 'user' | 'assistant',
@@ -51,7 +56,7 @@ chatRoutes.post('/messages', async (c) => {
   });
 
   // Sidebar Agent 处理
-  const result = await processSidebarMessage(user.userId, content, history);
+  const result = await processSidebarMessage(user.userId, content, history, browserContext);
 
   // 保存 AI 回复
   const aiMsgId = uuid();

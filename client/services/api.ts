@@ -281,7 +281,7 @@ export const interviews = {
 
 // ─── Chat API (Sidebar Agent) ─────────────────────
 export const chat = {
-  send: (content: string, browserContext?: { currentUrl?: string; pageTitle?: string; selectedText?: string }) =>
+  send: (content: string, browserContext?: { currentUrl?: string; pageTitle?: string; selectedText?: string; candidateId?: string; candidateName?: string; candidateRole?: string }) =>
     apiFetch<ChatMessageResponse>('/chat/messages', {
       method: 'POST',
       body: JSON.stringify({ content, browserContext }),

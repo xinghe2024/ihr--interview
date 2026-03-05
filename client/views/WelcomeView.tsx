@@ -27,6 +27,7 @@ import eileenAvatarImg from '../assets/hr.png';
 import logoImg from '../assets/logo.png';
 const EILEEN_AVATAR = eileenAvatarImg;
 const CHROME_STORE_URL = 'https://chromewebstore.google.com/'; // TODO: 替换为真实的扩展商店链接
+const ZP_CANDIDATE_LIST_URL = 'https://rd6.zhaopin.com'; // TODO: 替换为候选人列表真实URL
 
 // 自定义动效组件：AI 语音面试
 const AnimatedVoiceInterview = () => {
@@ -155,7 +156,7 @@ const AnimatedHeroDashboard = () => {
                         {/* 左侧：候选人列表 (占据 2/3 宽度) */}
                         <div className="lg:col-span-2 flex flex-col gap-3">
                             <div className="flex justify-between items-center mb-1">
-                                <span className="text-[14px] font-bold text-slate-800">最新 AI 初筛进展</span>
+                                <span className="text-[14px] font-bold text-slate-800">最新 AI 初面进展</span>
                                 <div className="h-7 px-3 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-[11px] font-bold cursor-pointer hover:bg-indigo-700 transition-colors">+ 添加候选人</div>
                             </div>
 
@@ -283,16 +284,28 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
     const [isExtensionInstalled, setIsExtensionInstalled] = useState(false);
     const [docModal, setDocModal] = useState<null | 'intro' | 'privacy' | 'terms'>(null);
 
-    // 检测是否在 Chrome 扩展环境中运行
+    // 检测插件是否已安装（通过 content script 注入的 DOM 属性）
     useEffect(() => {
-        try {
-            const w = window as any;
-            if (w.chrome?.runtime?.id) {
-                setIsExtensionInstalled(true);
-            }
-        } catch {
-            // 非扩展环境
+        const checkExtension = () =>
+            document.documentElement.getAttribute('data-ailin-ext') === 'true';
+
+        if (checkExtension()) {
+            setIsExtensionInstalled(true);
+            return;
         }
+
+        // content script 在 document_start 注入，但 MutationObserver 作为兜底
+        const observer = new MutationObserver(() => {
+            if (checkExtension()) {
+                setIsExtensionInstalled(true);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-ailin-ext'],
+        });
+        return () => observer.disconnect();
     }, []);
 
     useEffect(() => {
@@ -335,6 +348,15 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
         const ok = await login(phone, code);
         setLoading(false);
         if (ok) {
+            // 如果插件已安装，把 token 同步到插件存储（content script 转发给 SW）
+            const jwt = localStorage.getItem('ihr_nexus_token');
+            const refreshToken = localStorage.getItem('ihr_nexus_refresh_token');
+            const user = localStorage.getItem('ihr_nexus_user');
+            if (jwt && document.documentElement.getAttribute('data-ailin-ext') === 'true') {
+                window.dispatchEvent(new CustomEvent('ailin-login', {
+                    detail: { jwt, refreshToken, user },
+                }));
+            }
             setLoginAnimating(true);
             setTimeout(() => {
                 setLoginSuccess(true);
@@ -532,7 +554,7 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                         {/* 3. BOTTOM CTA — 区分安装状态 */}
                         <section className="py-16 px-6 bg-slate-50 text-center border-t border-slate-100">
                             <h3 className="text-2xl font-bold text-slate-900 mb-3">准备好提升招聘效率了吗？</h3>
-                            <p className="text-slate-500 mb-8">30 秒完成注册，立刻体验 AI 驱动的全新初筛流程</p>
+                            <p className="text-slate-500 mb-8">30 秒完成注册，立刻体验 AI 驱动的全新初面流程</p>
                             <button onClick={handlePrimaryCTA}
                                 className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-[16px] font-bold rounded-xl shadow-sm transition-all inline-flex items-center gap-2">
                                 {isExtensionInstalled ? (
@@ -641,29 +663,33 @@ const WelcomeView: React.FC<WelcomeViewProps> = ({ onNavigate }) => {
                             <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto mb-6">
                                 <CheckCircle2 size={40} className="text-emerald-500" />
                             </div>
-                            <h2 className="text-2xl font-bold text-slate-900 mb-2">账号已就绪</h2>
+                            <h2 className="text-2xl font-bold text-slate-900 mb-2">Ailin 已就绪</h2>
                             <p className="text-[14px] text-slate-500 mb-8 leading-relaxed">
-                                您已成功激活 Ailin。<br />前往工作台开始使用吧。
+                                去打开一份候选人简历，<br />Ailin 会在侧边栏等你。
                             </p>
 
                             <div className="grid grid-cols-3 gap-4 mb-8 border border-slate-100 rounded-xl p-4 bg-slate-50/50">
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="text-indigo-600"><Layout size={18} /></div>
-                                    <span className="text-[11px] text-slate-500 font-bold">侧栏助手</span>
+                                    <span className="text-[11px] text-slate-500 font-bold">侧栏伴随</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="text-violet-600"><Zap size={18} /></div>
-                                    <span className="text-[11px] text-slate-500 font-bold">一键面谈</span>
+                                    <span className="text-[11px] text-slate-500 font-bold">一键初面</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-2">
                                     <div className="text-emerald-600"><Target size={18} /></div>
-                                    <span className="text-[11px] text-slate-500 font-bold">多维报告</span>
+                                    <span className="text-[11px] text-slate-500 font-bold">结构报告</span>
                                 </div>
                             </div>
 
-                            <button onClick={handleGoToDashboard}
+                            <button onClick={() => { window.location.href = ZP_CANDIDATE_LIST_URL; }}
                                 className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
-                                进入智能工作台 <ArrowRight size={16} />
+                                前往智联招聘，开始初面 <ArrowRight size={16} />
+                            </button>
+                            <button onClick={handleGoToDashboard}
+                                className="mt-3 w-full py-2 text-slate-400 hover:text-slate-600 text-[13px] transition-colors flex items-center justify-center gap-1">
+                                进入工作台 <ArrowRight size={13} />
                             </button>
                         </div>
                     </div>

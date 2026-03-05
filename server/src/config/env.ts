@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   // 服务器
-  PORT: z.coerce.number().default(3001),
+  PORT: z.coerce.number().default(8080),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   // 数据库（Supabase）
@@ -39,6 +39,9 @@ const envSchema = z.object({
   // 文件上传
   UPLOAD_MAX_SIZE_MB: z.coerce.number().default(10),
   UPLOAD_DIR: z.string().default('./uploads'),
+
+  // 日志目录（生产环境文件日志）
+  LOG_DIR: z.string().default('/data/logs/ailin-server'),
 
   // CORS
   CORS_ORIGIN: z.string().default('*'),

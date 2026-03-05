@@ -24,6 +24,7 @@ const esmEntries = [
 // IIFE 入口（content script 不支持 ESM）
 const iifeEntries = [
   'content/zhaopin.ts',
+  'content/webapp.ts',
 ];
 
 const commonOptions = {
@@ -35,10 +36,7 @@ const commonOptions = {
 };
 
 async function build() {
-  // 清理 dist
-  if (existsSync(dist)) {
-    cpSync(dist, dist, { recursive: true }); // noop, just to ensure exists
-  }
+  // 确保 dist 目录存在
   mkdirSync(dist, { recursive: true });
 
   // ESM bundle

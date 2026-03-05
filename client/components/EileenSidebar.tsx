@@ -2,16 +2,25 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ViewState } from '../../shared/types';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { chat as chatApi } from '../services/api';
-import { Send, Sparkles, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X } from 'lucide-react';
+import { chat as chatApi, files as filesApi } from '../services/api';
+import { Send, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X, RotateCcw } from 'lucide-react';
+
+/** 富上下文结构：让 Ailin 知道用户当前在看什么 */
+export interface BrowserContextInfo {
+    mode: 'empty' | 'resume' | 'candidate_detail' | 'dashboard';
+    candidateId?: string;
+    candidateName?: string;
+    candidateRole?: string;
+}
 
 interface EileenSidebarProps {
     currentView: ViewState;
     onNavigate: (view: ViewState, id?: string) => void;
-    browserContext: 'empty' | 'resume';
+    browserContext: BrowserContextInfo;
     onLogout?: () => void;
     onClose?: () => void;
     unreadCount?: number;
+    extensionMode?: boolean; // Chrome 侧边栏模式：隐藏"Ailin"标题（Chrome 原生栏已显示）
 }
 
 type MessageType = 'text' | 'invitation-card' | 'result-card' | 'ksq-card';
@@ -27,13 +36,12 @@ interface Message {
 
 import eileenAvatarImg from '../assets/hr.png';
 
-const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext, onLogout, onClose, unreadCount = 0 }) => {
+const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, browserContext, onLogout, onClose, unreadCount = 0, extensionMode = false }) => {
     const { user } = useAuth();
     const { addToast } = useNotification();
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [introCollapsed, setIntroCollapsed] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +56,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
 
     // Initial Message Logic
     const [messages, setMessages] = useState<Message[]>([]);
+    const prevCandidateRef = useRef<string | undefined>(undefined);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,8 +75,60 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                 }));
                 if (loaded.length > 0) setMessages(loaded);
             })
-            .catch(() => {}); // Silently fail — history is optional
+            .catch(() => { }); // Silently fail — history is optional
     }, []);
+
+    // P1-3: 页面切换时自动插入分割线
+    useEffect(() => {
+        const currentCandidate = browserContext.candidateId;
+        if (currentCandidate && currentCandidate !== prevCandidateRef.current && messages.length > 0) {
+            const dividerMsg: Message = {
+                id: 'divider_' + Date.now(),
+                sender: 'ai',
+                type: 'text',
+                content: `🔗 已切换至 ${browserContext.candidateName || '未知候选人'} 的上下文`,
+                timestamp: Date.now(),
+            };
+            setMessages(prev => [...prev, dividerMsg]);
+        }
+        prevCandidateRef.current = currentCandidate;
+    }, [browserContext.candidateId]);
+
+    // P0-1: 清空对话（两步确认，不用丑陋的 window.confirm）
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
+    const handleClearChat = async () => {
+        if (!showClearConfirm) {
+            setShowClearConfirm(true);
+            // 3 秒后自动取消确认态
+            setTimeout(() => setShowClearConfirm(false), 3000);
+            return;
+        }
+        setShowClearConfirm(false);
+        try {
+            await chatApi.clear();
+            setMessages([]);
+            addToast({ type: 'success', title: '对话已清空', message: '历史记录已清除' });
+        } catch {
+            addToast({ type: 'error', title: '清空失败', message: '请稍后重试' });
+        }
+    };
+
+    // 简历文件上传
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // 重置 input 以支持再次选同一个文件
+        e.target.value = '';
+        try {
+            addToast({ type: 'info', title: '上传中', message: `正在上传 ${file.name}...` });
+            const res = await filesApi.upload(file);
+            // 上传成功后通过聊天通知 AI
+            handleSendMessage(`已上传简历文件：${file.name}，请帮我解析并生成初筛方案`);
+        } catch (err: any) {
+            addToast({ type: 'error', title: '上传失败', message: err.message || '请稍后重试' });
+        }
+    };
 
     // --- ACTIONS ---
 
@@ -81,9 +142,13 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         setIsTyping(true);
 
         try {
+            // P1-4: 发送时注入当前候选人上下文
             const res = await chatApi.send(text, {
                 currentUrl: window.location.href,
                 pageTitle: document.title,
+                candidateId: browserContext.candidateId,
+                candidateName: browserContext.candidateName,
+                candidateRole: browserContext.candidateRole,
             });
             setIsTyping(false);
             const aiMsg: Message = {
@@ -126,60 +191,6 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
     };
 
     // --- COMPONENTS ---
-    const IntroCard = () => {
-        if (introCollapsed) {
-            return (
-                <div className="mb-4 mx-2">
-                    <button onClick={() => setIntroCollapsed(false)}
-                        className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[12px] font-bold text-indigo-600 hover:bg-indigo-100 transition-colors w-full">
-                        <Sparkles size={14} /> 我是 Ailin，您的 AI 招聘助理 — 点击了解更多
-                    </button>
-                </div>
-            );
-        }
-        return (
-            <div className="mb-6 mx-2">
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative">
-                    <button onClick={() => setIntroCollapsed(true)}
-                        className="absolute top-3 right-3 p-1 text-slate-300 hover:text-slate-500 transition-colors" title="收起">
-                        <X size={14} />
-                    </button>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-                            <Sparkles size={18} />
-                        </div>
-                        <h3 className="font-bold text-slate-800 text-[17px]">我是您的 AI 招聘助理 - Ailin</h3>
-                    </div>
-                    <p className="text-[14px] text-slate-600 leading-relaxed mb-5 font-medium">
-                        不要让我只做一个聊天机器人，请把我当做您的专业下属。我可以全权负责：
-                    </p>
-                    <div className="space-y-3.5">
-                        <div className="flex items-start gap-3">
-                            <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">1</div>
-                            <div>
-                                <span className="text-[14px] font-bold text-slate-800 block leading-tight">深度阅卷</span>
-                                <span className="text-xs text-slate-500">解析简历疑点，生成面试策略</span>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">2</div>
-                            <div>
-                                <span className="text-[14px] font-bold text-slate-800 block leading-tight">AI 初筛面试</span>
-                                <span className="text-xs text-slate-500">生成邀约链接，候选人自助完成初筛</span>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">3</div>
-                            <div>
-                                <span className="text-[14px] font-bold text-slate-800 block leading-tight">生成评估报告</span>
-                                <span className="text-xs text-slate-500">红笔批注简历，提供录音转写</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     const InvitationCard = ({ msg }: { msg: Message }) => {
         const [copied, setCopied] = useState(false);
@@ -329,11 +340,11 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                         <>
                             <button onClick={handleConfirm}
                                 className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[13px] font-bold rounded-lg transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-1.5">
-                                <CheckCircle2 size={14} /> 确认方案，生成邀约
+                                {extensionMode ? '确认方案' : <><CheckCircle2 size={14} /> 确认方案，生成邀约</>}
                             </button>
                             <button onClick={() => setIsEditing(true)}
                                 className="px-4 py-2 bg-white border border-slate-200 hover:border-indigo-300 text-slate-600 hover:text-indigo-600 text-[13px] font-bold rounded-lg transition-all">
-                                ✏️ 修改方案
+                                {extensionMode ? '修改' : '✏️ 修改方案'}
                             </button>
                         </>
                     )}
@@ -376,8 +387,8 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div className="flex flex-col">
-                        <h1 className="font-bold text-slate-900 text-[16px] leading-tight">Ailin</h1>
-                        <span className="text-xs text-slate-400 mt-0.5">随时为您服务</span>
+                        {!extensionMode && <h1 className="font-bold text-slate-900 text-[16px] leading-tight">Ailin</h1>}
+                        {!extensionMode && <span className="text-xs text-slate-400 mt-0.5">你的 AI 招聘助理</span>}
                     </div>
                 </div>
 
@@ -397,6 +408,18 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                             </span>
                         )}
                     </div>
+                    {/* 🧹 P0-1: 清空对话按钮 — 两步确认 */}
+                    <button
+                        onClick={handleClearChat}
+                        className={`p-2.5 rounded-lg border shadow-sm transition-all hover:shadow-md flex items-center gap-1 ${showClearConfirm
+                            ? 'bg-rose-50 border-rose-300 text-rose-500'
+                            : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-rose-500'
+                            }`}
+                        title={showClearConfirm ? '再次点击确认清空' : '清空对话记录'}
+                    >
+                        <RotateCcw size={16} className={showClearConfirm ? 'animate-spin' : ''} />
+                        {showClearConfirm && <span className="text-[11px] font-bold pr-0.5">确认?</span>}
+                    </button>
                     {/* ⋯ Three-dot menu */}
                     <div className="relative" ref={menuRef}>
                         <button
@@ -468,7 +491,43 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
 
             {/* 3. MESSAGE LIST */}
             <div className="flex-1 overflow-y-auto p-4 scroll-smooth z-10 space-y-5 no-scrollbar min-h-0 bg-transparent">
-                {messages.length === 0 && <IntroCard />}
+                {messages.length === 0 && (
+                    <div className="flex w-full justify-start animate-in slide-in-from-bottom-2 fade-in duration-300">
+                        <div className="max-w-[92%] flex flex-col items-start">
+                            <div className="px-4 py-3 text-[14px] leading-relaxed shadow-sm backdrop-blur-md relative border bg-white/80 text-slate-800 rounded-[18px] rounded-bl-none border-white/50">
+                                <p className="text-[13px] text-slate-600 font-medium mb-3">
+                                    {extensionMode
+                                        ? '初面全流程，交给我全权负责：'
+                                        : '不要让我只做一个聊天机器人，请把我当做您的专业下属。我可以全权负责：'}
+                                </p>
+                                <div className={extensionMode ? 'space-y-2' : 'space-y-3'}>
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">1</div>
+                                        <div>
+                                            <span className="text-[13px] font-bold text-slate-800 block leading-tight">15 分钟全自动初面</span>
+                                            <span className="text-xs text-slate-500">
+                                                {extensionMode ? 'AI 全程主持，多轮语音面谈' : '一键发起，AI 代你主持多轮语音面谈'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2.5">
+                                        <div className="w-5 h-5 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0 mt-0.5">2</div>
+                                        <div>
+                                            <span className="text-[13px] font-bold text-slate-800 block leading-tight">结构化报告，拒绝模棱两可</span>
+                                            <span className="text-xs text-slate-500">
+                                                {extensionMode ? '量化评分报告，带红笔批注' : '每位候选人生成带红笔批注的胜任力量化评分'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-[13px] text-slate-500 leading-relaxed">
+                                    您可以<strong className="text-indigo-600 font-bold">上传简历</strong>，或打开网页版简历让我自动识别，开始第一次初面 👇
+                                </p>
+                            </div>
+                            <span className="text-xs text-slate-500/80 mt-1 px-1 font-medium">Ailin • 刚刚</span>
+                        </div>
+                    </div>
+                )}
                 {messages.map((msg) => {
                     const isUser = msg.sender === 'user';
                     return (
@@ -485,7 +544,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                                     {msg.type === 'result-card' && <ResultCard msg={msg} />}
                                 </div>
                                 <span className="text-xs text-slate-500/80 mt-1 px-1 font-medium">
-                                    {isUser ? 'You' : 'Eileen'} • {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {isUser ? 'You' : 'Ailin'} •{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
                         </div>
@@ -503,10 +562,19 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* 隐藏的文件选择器 */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                className="hidden"
+                onChange={handleFileUpload}
+            />
+
             {/* 4. SMART ACTION BAR — unified input + upload + contextual resume */}
             <div className="shrink-0 z-20 bg-white/60 backdrop-blur-2xl border-t border-white/40 px-3 pt-2 pb-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                {browserContext === 'resume' ? (
-                    /* ===== Resume Page Mode: 「赵嘉明 · 交给 Ailin 来初面」+ 📎 ===== */
+                {browserContext.mode === 'resume' ? (
+                    /* ===== Resume Page Mode: 「候选人 · 交给 Ailin 来初面」+ 📎 ===== */
                     <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-100/90 via-indigo-50/80 to-white/90 border-2 border-indigo-200 rounded-2xl px-3 py-2.5 animate-in slide-in-from-bottom-3 duration-500 ring-4 ring-indigo-100/40 relative overflow-hidden">
                         {/* Active pulse indicator */}
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-indigo-500 rounded-l-2xl" />
@@ -517,16 +585,16 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                         </div>
                         <div className="flex flex-col shrink-0">
                             <span className="text-[10px] text-indigo-500 font-bold leading-none mb-0.5">简历已识别</span>
-                            <span className="text-[13px] font-bold text-slate-900 truncate">赵嘉明</span>
+                            <span className="text-[13px] font-bold text-slate-900 truncate">{browserContext.candidateName || '候选人'}</span>
                         </div>
                         <button
-                            onClick={() => handleSendMessage('请帮我分析这份简历并生成初筛方案')}
+                            onClick={() => handleSendMessage(`请帮我分析${browserContext.candidateName ? ' ' + browserContext.candidateName + ' 的' : '这份'}简历并生成初筛方案`)}
                             className="ml-auto flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-bold rounded-xl shadow-md shadow-indigo-200 transition-all hover:shadow-lg hover:scale-[1.02] whitespace-nowrap"
                         >
-                            <ExternalLink size={13} /> 交给 Ailin 来初面
+                            {extensionMode ? '立即初面' : <><ExternalLink size={13} /> 交给 Ailin 来初面</>}
                         </button>
                         <button
-                            onClick={() => handleSendMessage('上传简历')}
+                            onClick={() => fileInputRef.current?.click()}
                             className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/80 hover:bg-slate-50 border border-indigo-100 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
                             title="上传本地简历"
                         >
@@ -534,32 +602,49 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
                         </button>
                     </div>
                 ) : (
-                    /* ===== Default Mode: 📎 + input placeholder ===== */
-                    <div className="bg-gradient-to-r from-indigo-50/50 to-rose-50/50 border border-white/60 p-1.5 pl-2 rounded-2xl shadow-inner flex items-center gap-1.5 transition-all focus-within:ring-2 focus-within:ring-rose-200/50 focus-within:border-rose-200 group">
-                        <button
-                            onClick={() => handleSendMessage('上传简历')}
-                            className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/60 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
-                            title="上传本地简历"
-                        >
-                            <Paperclip size={17} />
-                        </button>
-                        <input
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="上传简历，或浏览网页版简历让我自动识别…"
-                            className="flex-1 bg-transparent border-none outline-none text-[13px] text-slate-800 placeholder:text-slate-400 font-medium h-9 w-full"
-                        />
-                        <button
-                            onClick={() => handleSendMessage()}
-                            disabled={!inputValue.trim()}
-                            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 
-                        ${inputValue.trim()
-                                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-200 hover:shadow-lg'
-                                    : 'bg-white/50 text-slate-300'}`}
-                        >
-                            <Send size={18} fill={inputValue.trim() ? "currentColor" : "none"} />
-                        </button>
+                    /* ===== Default Mode: context chip + 📎 + input ===== */
+                    <div className="bg-gradient-to-r from-indigo-50/50 to-rose-50/50 border border-white/60 rounded-2xl shadow-inner transition-all focus-within:ring-2 focus-within:ring-rose-200/50 focus-within:border-rose-200 group">
+                        {/* P1-2: 内嵌状态胶囊 — 像 ChatGPT 附件一样嵌在输入框内 */}
+                        {(browserContext.candidateId || browserContext.mode === 'dashboard' || browserContext.mode === 'empty') && (
+                            <div className="px-2.5 pt-2 pb-0.5">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${browserContext.candidateId
+                                    ? 'bg-indigo-100 text-indigo-600 border border-indigo-200/60'
+                                    : 'bg-slate-100 text-slate-400 border border-slate-200/60'
+                                    }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${browserContext.candidateId ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+                                    {browserContext.candidateId
+                                        ? `${browserContext.candidateName || '候选人'}${browserContext.candidateRole ? ' · ' + browserContext.candidateRole : ''}`
+                                        : '📋 全局工作台'
+                                    }
+                                </span>
+                            </div>
+                        )}
+                        <div className="p-1.5 pl-2 flex items-center gap-1.5">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/60 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
+                                title="上传本地简历"
+                            >
+                                <Paperclip size={17} />
+                            </button>
+                            <input
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                placeholder={extensionMode ? '上传简历，或浏览网页版简历…' : '有问题，尽管问'}
+                                className="flex-1 bg-transparent border-none outline-none text-[13px] text-slate-800 placeholder:text-slate-400 font-medium h-9 w-full"
+                            />
+                            <button
+                                onClick={() => handleSendMessage()}
+                                disabled={!inputValue.trim()}
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-300 shrink-0 
+                            ${inputValue.trim()
+                                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-200 hover:shadow-lg'
+                                        : 'bg-white/50 text-slate-300'}`}
+                            >
+                                <Send size={18} fill={inputValue.trim() ? "currentColor" : "none"} />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

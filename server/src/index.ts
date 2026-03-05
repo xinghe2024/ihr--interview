@@ -4,7 +4,8 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
+
+import { logger } from './services/logger.js';
 
 import { loadEnv } from './config/env.js';
 import { isDbConfigured, DbNotConfiguredError } from './config/database.js';
@@ -22,7 +23,12 @@ const env = loadEnv();
 const app = new Hono();
 
 // ─── 全局中间件 ─────────────────────────────────
-app.use('*', logger());
+// HTTP 请求日志（替代 hono/logger，输出到 winston）
+app.use('*', async (c, next) => {
+  const start = Date.now();
+  await next();
+  logger.info(`${c.req.method} ${c.req.path} ${c.res.status} ${Date.now() - start}ms`);
+});
 app.use('*', cors({
   origin: (origin) => {
     // 允许 Chrome 插件来源
@@ -41,7 +47,7 @@ app.onError((err, c) => {
     return c.json(apiResponse(null, { code: 'DB_NOT_CONFIGURED', message: err.message }), 503);
   }
   const isDev = env.NODE_ENV !== 'production';
-  console.error('❌ Unhandled error:', err);
+  logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
   return c.json(
     apiResponse(null, { code: 'INTERNAL_ERROR', message: isDev ? err.message : 'Internal server error' }),
     500,
@@ -68,8 +74,8 @@ app.notFound((c) => c.json(apiResponse(null, { code: 'NOT_FOUND', message: `Rout
 
 // ─── 启动服务 ───────────────────────────────────
 serve({ fetch: app.fetch, port: env.PORT }, (info) => {
-  console.log(`🚀 Ailin server running on http://localhost:${info.port}`);
-  console.log(`   env=${env.NODE_ENV} llm=${env.LLM_PROVIDER} db=${isDbConfigured() ? 'connected' : 'NOT configured'}`);
+  logger.info(`Ailin server running on http://localhost:${info.port}`);
+  logger.info(`env=${env.NODE_ENV} llm=${env.LLM_PROVIDER} db=${isDbConfigured() ? 'connected' : 'NOT configured'}`);
 });
 
 export default app;
