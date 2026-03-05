@@ -11,6 +11,7 @@ import type {
   ChatCompletionToolMessageParam,
 } from 'openai/resources/chat/completions.mjs';
 import { getEnv } from '../config/env.js';
+import { trackServerEvent } from './analyticsService.js';
 
 // 每个供应商的默认配置
 const PROVIDER_DEFAULTS: Record<string, { baseURL: string; model: string }> = {
@@ -94,12 +95,24 @@ export async function chat(prompt: string, options: ChatOptions = {}): Promise<s
 
   messages.push({ role: 'user', content: prompt });
 
+  const startMs = Date.now();
   const response = await client.chat.completions.create({
     model,
     messages,
     temperature: options.temperature ?? 0.7,
     max_tokens: options.maxTokens ?? 4096,
     ...(options.jsonMode ? { response_format: { type: 'json_object' } } : {}),
+  });
+
+  const latencyMs = Date.now() - startMs;
+  const usage = response.usage;
+  trackServerEvent('perf.llm.call_completed', {
+    model,
+    provider: env.LLM_PROVIDER,
+    latency_ms: latencyMs,
+    prompt_tokens: usage?.prompt_tokens ?? 0,
+    completion_tokens: usage?.completion_tokens ?? 0,
+    total_tokens: usage?.total_tokens ?? 0,
   });
 
   return response.choices[0]?.message?.content ?? '';
@@ -153,13 +166,24 @@ export async function chatWithTools(
 
   const executedToolCalls: ChatWithToolsResult['executedToolCalls'] = [];
 
+  const toolCallStartMs = Date.now();
   for (let i = 0; i < maxIterations; i++) {
+    const iterStartMs = Date.now();
     const response = await client.chat.completions.create({
       model,
       messages,
       tools: options.tools,
       temperature: options.temperature ?? 0.5,
       max_tokens: options.maxTokens ?? 4096,
+    });
+
+    const iterLatencyMs = Date.now() - iterStartMs;
+    const usage = response.usage;
+    trackServerEvent('perf.llm.tool_call_iteration', {
+      model,
+      iteration: i,
+      latency_ms: iterLatencyMs,
+      total_tokens: usage?.total_tokens ?? 0,
     });
 
     const choice = response.choices[0];

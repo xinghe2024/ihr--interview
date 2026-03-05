@@ -11,6 +11,7 @@ import { analyzeTranscript } from '../agents/analysisAgent.js';
 import { generateReport, type ReportResult } from '../agents/reportAgent.js';
 import { extractVerifiedTags, type VerifiedTag } from './tagService.js';
 import type { DetailedResume, KSQItem, Observation, InterviewMessage } from '@shared/types.js';
+import { trackServerEvent } from './analyticsService.js';
 
 export interface ResumeParseResult {
   resume: DetailedResume;
@@ -28,6 +29,9 @@ export async function runResumePipeline(
   pdfPath: string,
   role: string,
 ): Promise<ResumeParseResult> {
+  const pipelineStart = Date.now();
+  trackServerEvent('agent.resume_pipeline.started', { role });
+
   // Step 1: PDF → raw text
   console.log('📄 [Orchestrator] Step 1: Extracting text from PDF...');
   const rawText = await extractTextFromPdf(pdfPath);
@@ -42,6 +46,13 @@ export async function runResumePipeline(
   console.log('🎯 [Orchestrator] Step 3: Running KSQ Agent...');
   const ksqItems = await generateKSQ(resume, role);
   console.log(`   Generated ${ksqItems.length} KSQ items`);
+
+  trackServerEvent('agent.resume_pipeline.completed', {
+    role,
+    duration_ms: Date.now() - pipelineStart,
+    raw_text_length: rawText.length,
+    ksq_count: ksqItems.length,
+  });
 
   return { resume, ksqItems, rawText };
 }
@@ -83,6 +94,9 @@ export async function runAnalysisPipeline(
   ksqItems: KSQItem[],
   resume?: DetailedResume,
 ): Promise<AnalysisResult> {
+  const pipelineStart = Date.now();
+  trackServerEvent('agent.analysis_pipeline.started', { message_count: messages.length, ksq_count: ksqItems.length });
+
   const ksqTopics = ksqItems.map(k => k.topic);
 
   // Step 1: 信号检测
@@ -99,6 +113,13 @@ export async function runAnalysisPipeline(
   console.log('🏷️ [Orchestrator] Step 3: Extracting verified tags...');
   const verifiedTags = extractVerifiedTags(report.ksqResults, observations);
   console.log(`   Extracted ${verifiedTags.length} tags`);
+
+  trackServerEvent('agent.analysis_pipeline.completed', {
+    duration_ms: Date.now() - pipelineStart,
+    observation_count: observations.length,
+    recommendation: report.recommendation,
+    tag_count: verifiedTags.length,
+  });
 
   return { observations, report, verifiedTags };
 }

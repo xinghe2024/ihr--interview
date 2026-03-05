@@ -6,8 +6,10 @@ import ToastContainer from './components/Toast';
 import EileenSidebar, { BrowserContextInfo } from './components/EileenSidebar';
 import CanvasArea from './components/CanvasArea';
 import OrderDetailView from './views/OrderDetailView';
+import DataDashboardView from './views/DataDashboardView';
 import WelcomeView from './views/WelcomeView';
-import { Smartphone, MessageCircle } from 'lucide-react';
+import { Smartphone, MessageCircle, BarChart3 } from 'lucide-react';
+import { initAnalytics, track } from './services/analytics';
 
 // ─── 插件侧边栏独立模式 ────────────────────────────────
 
@@ -129,6 +131,12 @@ const AppInner: React.FC = () => {
   // 检测插件是否已安装（webapp.ts content script 在 document_start 注入该属性）
   const hasExtension = document.documentElement.getAttribute('data-ailin-ext') === 'true';
 
+  // 初始化埋点
+  useEffect(() => {
+    const isSidebar = new URLSearchParams(window.location.search).get('mode') === 'sidebar';
+    initAnalytics(isSidebar ? 'extension' : 'web');
+  }, []);
+
   // 插件侧边栏 iframe 模式
   if (new URLSearchParams(window.location.search).get('mode') === 'sidebar') {
     return <SidebarMode />;
@@ -136,6 +144,7 @@ const AppInner: React.FC = () => {
 
   const handleNavigate = (view: ViewState, id?: string) => {
     setCurrentView(view);
+    track('action.navigation.changed', { from: currentView, to: view, target_id: id ?? null });
     if (view === ViewState.CANDIDATE_MOBILE && id) {
       setInterviewSessionId(id);
     } else if (id) {
@@ -183,6 +192,11 @@ const AppInner: React.FC = () => {
 
   if (currentView === ViewState.ORDER_TRACKING) {
     return <OrderDetailView candidateId={selectedCandidateId} onNavigate={handleNavigate} defaultTab="TIMELINE" />;
+  }
+
+  // Data Dashboard - Full Screen
+  if (currentView === ViewState.DATA_DASHBOARD) {
+    return <DataDashboardView onNavigate={handleNavigate} />;
   }
 
   // 2. MAIN LAYOUT: Full-screen Dashboard + Floating Sidebar
@@ -241,6 +255,13 @@ const AppInner: React.FC = () => {
           title="Switch to Candidate Phone Simulator"
         >
           <Smartphone size={20} />
+        </button>
+        <button
+          onClick={() => handleNavigate(ViewState.DATA_DASHBOARD)}
+          className="bg-violet-600 text-white p-3 rounded-full shadow-float hover:scale-110 transition-transform ring-4 ring-violet-200/40"
+          title="产品数据仪表盘"
+        >
+          <BarChart3 size={20} />
         </button>
       </div>
     </div>

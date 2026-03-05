@@ -23,6 +23,8 @@ import { generateOpening, processMessage, type InterviewState } from '../agents/
 import { transcribeAudio } from '../services/sttService.js';
 import { runAnalysisPipeline } from '../services/orchestrator.js';
 import { publishCandidateEvent } from '../services/eventService.js';
+import { trackServerEvent } from '../services/analyticsService.js';
+import { checkAndTrack, checkInterviewTurn, checkObservations, checkReport } from '../services/qualityChecker.js';
 import {
   InterviewSessionStatus,
   type CreateInterviewResponse,
@@ -102,6 +104,8 @@ interviews.post('/', requireAuth(), async (c) => {
   const inviteUrl = `https://app.ailin.ai/i/${sessionId}`;
   const inviteText = `【艾琳面试邀请】您好 ${candidate.name}，诚邀您参加「${candidate.role}」岗位的线上初筛面试，请点击链接开始：${inviteUrl}（${expiresInHours}小时内有效）`;
 
+  trackServerEvent('funnel.interview.created', { candidate_id: candidateId, channel, session_id: sessionId }, user.userId);
+
   const res: CreateInterviewResponse = { sessionId, inviteUrl, inviteText, expiresAt };
   return c.json(apiResponse(res), 201);
 });
@@ -125,6 +129,7 @@ interviews.get('/:sessionId/landing', async (c) => {
 
   // 更新状态 + 发布事件
   if (session.status === 'CREATED') {
+    trackServerEvent('funnel.landing.opened', { session_id: sessionId, candidate_id: session.candidate_id });
     await db.from('interviews').update({ status: 'LANDING_OPENED' }).eq('id', sessionId);
     await db.from('candidates').update({
       status: 'TOUCHED',
@@ -188,6 +193,7 @@ interviews.post('/:sessionId/start', interviewGuard(), async (c) => {
   }
 
   const now = new Date().toISOString();
+  trackServerEvent('funnel.interview.started', { session_id: sessionId, candidate_id: session.candidate_id });
   await db.from('interviews').update({
     status: 'IN_PROGRESS',
     started_at: now,
@@ -348,6 +354,10 @@ interviews.post('/:sessionId/messages', interviewGuard(), async (c) => {
 
   const result = await processMessage(state, history, messageContent);
 
+  // 质量校验（fire-and-forget）
+  const turnNumber = history.filter((m) => m.role === 'candidate').length;
+  checkAndTrack('interview', () => checkInterviewTurn(result, state, history), { session_id: sessionId, turn_number: turnNumber });
+
   // 持久化 currentKsqIndex
   await db.from('interviews').update({
     current_ksq_index: result.currentKsqIndex,
@@ -491,6 +501,8 @@ async function handleInterviewEnd(
   const now = new Date().toISOString();
   const candidateData = session.candidates as any;
 
+  trackServerEvent('funnel.interview.ended', { session_id: sessionId, candidate_id: session.candidate_id, reason });
+
   // 更新面试状态
   await db.from('interviews').update({
     status: 'COMPLETED',
@@ -595,6 +607,11 @@ async function triggerAnalysisPipeline(sessionId: string, session: any) {
   // 运行 M4 流水线
   const result = await runAnalysisPipeline(messages, ksqItems, candidate?.resume_data);
 
+  // 质量校验（fire-and-forget）
+  const candidateMessageCount = messages.filter((m) => m.role === 'candidate').length;
+  checkAndTrack('analysis', () => checkObservations(result.observations, candidateMessageCount), { session_id: sessionId, observation_count: result.observations.length }, session.user_id);
+  checkAndTrack('report', () => checkReport(result.report, ksqItems, result.observations), { session_id: sessionId, recommendation: result.report.recommendation }, session.user_id);
+
   // 更新候选人：写入 observations + ksq_results + recommendation
   await db.from('candidates').update({
     observations: result.observations,
@@ -628,6 +645,13 @@ async function triggerAnalysisPipeline(sessionId: string, session: any) {
     message: `${candidateData?.name ?? '候选人'} 的初筛报告已交付 — ${result.report.summary}`,
     severity: 'success',
   });
+
+  trackServerEvent('funnel.report.delivered', {
+    session_id: sessionId,
+    candidate_id: session.candidate_id,
+    recommendation: result.report.recommendation,
+    observation_count: result.observations.length,
+  }, session.user_id);
 
   console.log(`✅ [M4] Analysis complete for session ${sessionId}: ${result.report.recommendation}`);
 }

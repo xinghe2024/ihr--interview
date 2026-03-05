@@ -3,6 +3,7 @@ export enum ViewState {
   WELCOME = 'WELCOME',
   INITIATION = 'INITIATION',
   DASHBOARD = 'DASHBOARD',
+  DATA_DASHBOARD = 'DATA_DASHBOARD',
   REPORT = 'REPORT',
   ORDER_TRACKING = 'ORDER_TRACKING',
   CANDIDATE_MOBILE = 'CANDIDATE_MOBILE'
@@ -656,4 +657,65 @@ export interface InterviewStatusEvent {
   candidateId: string;
   timestamp: string;
   summary?: InterviewSummary;       // completed 时携带
+}
+
+// ================================================================
+// ========== 埋点 & 数据健康仪表盘 ==========
+// ================================================================
+
+/** GET /api/analytics/health-report 返回值 */
+export interface AnalyticsHealthReport {
+  period: { from: string; to: string };
+  growth: {
+    dau: number[];                  // 每日活跃用户
+    newUsers: number[];             // 每日新注册
+    sessions: number[];             // 每日会话数
+    dauTrend: number;               // DAU 7 日环比 %
+  };
+  funnel: {
+    resumeParsed: number;
+    interviewCreated: number;
+    landingOpened: number;
+    interviewStarted: number;
+    interviewCompleted: number;
+    reportDelivered: number;
+    /** 各阶段转化率（百分比） */
+    conversionRates: Record<string, number>;
+  };
+  engagement: {
+    avgSessionDuration: number;     // 平均页面停留（秒）
+    featureUsage: Record<string, number>; // 功能使用次数
+    sidebarMessages: number;        // Sidebar 消息总量
+  };
+  quality: {
+    avgInterviewDuration: number;   // 平均面试时长（秒）
+    avgObservationsPerInterview: number;
+    recommendationDistribution: Record<string, number>; // Proceed / FollowUp / Hold
+  };
+  systemHealth: {
+    apiErrorRate: number;           // API 错误率（百分比）
+    avgLlmLatency: number;          // LLM 平均延迟（ms）
+    p95LlmLatency: number;          // LLM P95 延迟（ms）
+    avgLlmTokens: number;           // 平均 token 消耗
+    agentFailureRate: number;       // Agent 流水线失败率
+  };
+  agentQuality?: {
+    overallScore: number;
+    overallPassRate: number;
+    agents: Record<string, {
+      avgScore: number;
+      passRate: number;
+      checkCount: number;
+      anomalyCount: number;
+      criticalCount: number;
+    }>;
+    scoreSeries: Array<{ date: string; value: number }>;
+  };
+  alerts: Array<{
+    level: 'warning' | 'critical';
+    metric: string;
+    message: string;
+    value: number;
+    threshold: number;
+  }>;
 }

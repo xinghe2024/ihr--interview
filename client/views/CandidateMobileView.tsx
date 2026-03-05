@@ -5,6 +5,7 @@ import { interviews as interviewsApi } from '../services/api';
 import type { InterviewLandingResponse, InterviewSummary, InterviewProgress } from '../../shared/types';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import VoiceBubble from '../components/VoiceBubble';
+import { track } from '../services/analytics';
 
 interface CandidateMobileViewProps {
     onExit: () => void;
@@ -108,6 +109,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit, sessi
 
     // End interview via API
     const handleEndInterview = useCallback(async (reason: string) => {
+        track('view.h5_ended.entered', { session_id: sessionId || '', reason });
         if (!sessionId) { setState('ENDED'); return; }
         try {
             const res = await interviewsApi.end(sessionId, reason);
@@ -122,6 +124,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit, sessi
     const handleVoiceComplete = useCallback(async (blob: Blob, durationSeconds: number) => {
         if (!sessionId || interviewCompleted || durationSeconds < 0.5) return;
 
+        track('action.h5.message_sent', { is_voice: true, duration_s: Math.round(durationSeconds), session_id: sessionId });
         const tempId = 'voice_' + Date.now();
         const roundedDuration = Math.round(durationSeconds);
         setChatMessages(prev => [...prev, {
@@ -191,6 +194,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit, sessi
     // Fetch landing data
     useEffect(() => {
         if (!sessionId) return;
+        track('view.h5_landing.entered', { session_id: sessionId });
         setLandingLoading(true);
         setLandingError(null);
         interviewsApi.getLanding(sessionId)
@@ -282,6 +286,7 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit, sessi
         const text = chatInput.trim();
         if (!text || interviewCompleted || !sessionId) return;
 
+        track('action.h5.message_sent', { is_voice: false, session_id: sessionId });
         const msgId = 'c_' + Date.now();
         setChatMessages(prev => [...prev, {
             id: msgId,
@@ -398,7 +403,10 @@ const CandidateMobileView: React.FC<CandidateMobileViewProps> = ({ onExit, sessi
         setIsCancelling(delta > CANCEL_THRESHOLD);
     }, [recorder.state]);
 
-    const handleStartInterview = () => setState('CHATTING');
+    const handleStartInterview = () => {
+        track('view.h5_chat.entered', { session_id: sessionId });
+        setState('CHATTING');
+    };
 
     // --- RENDER FUNCTIONS ---
 

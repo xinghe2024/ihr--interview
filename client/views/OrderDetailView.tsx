@@ -5,6 +5,8 @@ import { ChevronLeft, ChevronDown, Clock, Mail, Phone, FileText, CheckCircle2, A
 import RedPenCard from '../components/RedPenCard';
 import { useNotification } from '../contexts/NotificationContext';
 import { candidates as candidatesApi } from '../services/api';
+import { useViewTracking } from '../hooks/useViewTracking';
+import { track } from '../services/analytics';
 import eileenAvatarImg from '../assets/hr.png';
 
 interface OrderDetailViewProps {
@@ -66,6 +68,7 @@ function timelineToLogs(events: TimelineEvent[]): TimelineLog[] {
 }
 
 const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNavigate, defaultTab = 'ANALYSIS' }) => {
+    useViewTracking(defaultTab === 'ANALYSIS' ? 'report' : 'tracking', { candidate_id: candidateId ?? null });
     const { addToast } = useNotification();
 
     // --- API data loading ---
@@ -122,6 +125,7 @@ const OrderDetailView: React.FC<OrderDetailViewProps> = ({ candidateId, onNaviga
     // 3-WAY ROUTING DECISION HANDLER
     const handleDecision = async (type: 'PROCEED' | 'FOLLOWUP' | 'HOLD') => {
         if (!candidateId) return;
+        track('funnel.decision.made', { candidate_id: candidateId, decision: type });
         setDecisionState('PROCESSING');
         const recommendationMap = { PROCEED: 'Proceed' as const, FOLLOWUP: 'FollowUp' as const, HOLD: 'Hold' as const };
         try {

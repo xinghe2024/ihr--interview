@@ -4,6 +4,8 @@ import type { Candidate } from '../../shared/types';
 import type { BrowserContextInfo } from '../components/EileenSidebar';
 import { CheckCircle2, Phone, AlertTriangle, ArrowRight, Clock, Loader2, FileText, Briefcase, GraduationCap, MapPin, HelpCircle, Mail, Activity, Sparkles, UserCheck, Radio, Search, Bell, CheckCheck } from 'lucide-react';
 import { candidates as candidatesApi, notifications as notificationsApi } from '../services/api';
+import { useViewTracking } from '../hooks/useViewTracking';
+import { track } from '../services/analytics';
 
 interface DashboardViewProps {
     onNavigate: (view: ViewState, id: string) => void;
@@ -61,6 +63,7 @@ const InfoTip = ({ text, className = '' }: { text: string; className?: string })
 };
 
 const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowserContext, onNavigate, onUnreadCountChange }) => {
+    useViewTracking('dashboard');
     const [filter, setFilter] = useState<FilterType>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
     const [activityIndex, setActivityIndex] = useState(0);
@@ -103,6 +106,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     }, [unreadEvents.length]);
 
     const handleDismissEvent = async (eventId: string, candidateId: string) => {
+        track('action.notification.clicked', { candidate_id: candidateId });
         // Optimistic update
         setUpdateEvents(prev => prev.map(e => e.id === eventId ? { ...e, isRead: true } : e));
         // Call API
@@ -120,6 +124,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     };
 
     const handleMarkAllRead = async () => {
+        track('action.notification.mark_all_read', { count: unreadEvents.length });
         const prevEvents = updateEvents;
         setUpdateEvents(prev => prev.map(e => ({ ...e, isRead: true })));
         notificationsApi.markAllRead().catch(() => setUpdateEvents(prevEvents));
@@ -160,6 +165,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ browserContext, setBrowse
     const sortedList = [...filteredList].sort((a, b) => getSortPriority(a) - getSortPriority(b));
 
     const handleRowClick = (c: Candidate) => {
+        track('action.dashboard.candidate_clicked', { candidate_id: c.id, status: c.status });
         if (c.status === CandidateStatus.DELIVERED) {
             onNavigate(ViewState.REPORT, c.id);
         } else {

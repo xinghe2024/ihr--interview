@@ -16,6 +16,7 @@ import fileRoutes from './routes/files.js';
 import interviewRoutes from './routes/interviews.js';
 import chatRoutes from './routes/chat.js';
 import notificationRoutes from './routes/notifications.js';
+import analyticsRoutes from './routes/analytics.js';
 
 // 初始化环境变量
 const env = loadEnv();
@@ -68,6 +69,9 @@ app.route('/api/interviews', interviewRoutes);
 // ─── M5 路由 ────────────────────────────────────
 app.route('/api/chat', chatRoutes);
 app.route('/api/notifications', notificationRoutes);
+
+// ─── 埋点路由 ─────────────────────────────────
+app.route('/api/analytics', analyticsRoutes);
 
 // ─── 404 ────────────────────────────────────────
 app.notFound((c) => c.json(apiResponse(null, { code: 'NOT_FOUND', message: `Route not found: ${c.req.method} ${c.req.path}` }), 404));

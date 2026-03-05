@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { chat as chatApi, files as filesApi } from '../services/api';
 import { Send, CheckCircle2, Copy, LayoutGrid, UserCircle2, Paperclip, Command, MoreHorizontal, ArrowLeft, Link2, ExternalLink, Trash2, Plus, ClipboardCheck, Search, LogOut, Settings, HelpCircle, X, RotateCcw } from 'lucide-react';
+import { track } from '../services/analytics';
 
 /** 富上下文结构：让 Ailin 知道用户当前在看什么 */
 export interface BrowserContextInfo {
@@ -107,6 +108,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         try {
             await chatApi.clear();
             setMessages([]);
+            track('action.sidebar.chat_cleared');
             addToast({ type: 'success', title: '对话已清空', message: '历史记录已清除' });
         } catch {
             addToast({ type: 'error', title: '清空失败', message: '请稍后重试' });
@@ -123,6 +125,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         try {
             addToast({ type: 'info', title: '上传中', message: `正在上传 ${file.name}...` });
             const res = await filesApi.upload(file);
+            track('action.sidebar.file_uploaded', { file_type: file.name.split('.').pop() ?? 'unknown' });
             // 上传成功后通过聊天通知 AI
             handleSendMessage(`已上传简历文件：${file.name}，请帮我解析并生成初筛方案`);
         } catch (err: any) {
@@ -140,6 +143,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         setMessages(prev => [...prev, userMsg]);
         setInputValue('');
         setIsTyping(true);
+        track('action.sidebar.message_sent', { has_candidate_context: !!browserContext.candidateId, is_override: !!textOverride });
 
         try {
             // P1-4: 发送时注入当前候选人上下文
@@ -187,6 +191,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
             document.execCommand('copy');
             document.body.removeChild(textarea);
         }
+        track('funnel.invitation.copied');
         addToast({ type: 'success', title: '已复制到剪贴板', message: '邀约信息已复制，可直接粘贴发送给候选人' });
     };
 
@@ -236,6 +241,7 @@ const EileenSidebar: React.FC<EileenSidebarProps> = ({ currentView, onNavigate, 
         const handleConfirm = () => {
             setConfirmed(true);
             setIsEditing(false);
+            track('funnel.ksq.confirmed', { items_count: items.length, was_edited: isEditing });
             setTimeout(() => triggerInvitationAfterKSQ(), 800);
         };
 

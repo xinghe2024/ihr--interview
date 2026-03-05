@@ -11,6 +11,7 @@ import { getSupabase } from '../config/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { apiResponse } from '../middleware/apiResponse.js';
 import { processSidebarMessage } from '../agents/sidebarAgent.js';
+import { checkAndTrack, checkSidebarResponse } from '../services/qualityChecker.js';
 import type { ChatMessageResponse, ChatHistoryResponse } from '@shared/types.js';
 
 const chatRoutes = new Hono();
@@ -57,6 +58,9 @@ chatRoutes.post('/messages', async (c) => {
 
   // Sidebar Agent 处理
   const result = await processSidebarMessage(user.userId, content, history, browserContext);
+
+  // 质量校验（fire-and-forget）
+  checkAndTrack('sidebar', () => checkSidebarResponse(result, content), {}, user.userId);
 
   // 保存 AI 回复
   const aiMsgId = uuid();

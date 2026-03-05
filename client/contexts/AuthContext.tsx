@@ -9,6 +9,7 @@ import {
   clearAuth,
   setForceLogoutCallback,
 } from '../services/api';
+import { setUserId as setAnalyticsUserId, clearUserId as clearAnalyticsUserId, track } from '../services/analytics';
 
 export type { UserProfile };
 
@@ -37,6 +38,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(true);
 
     const doLogout = () => {
+        track('action.auth.logout');
+        clearAnalyticsUserId();
         clearAuth();
         setUser(null);
     };
@@ -55,6 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (e.data?.type === 'INJECT_AUTH' && e.data.token && e.data.user) {
                 storeAuth(e.data.token, e.data.refreshToken || '', e.data.user);
                 setUser(e.data.user);
+                setAnalyticsUserId(e.data.user.id);
                 setIsLoading(false);
             }
         };
@@ -76,6 +80,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         const res = await authApi.refresh(refreshToken);
                         storeAuth(res.token, refreshToken, savedUser);
                         setUser(savedUser);
+                        setAnalyticsUserId(savedUser.id);
                     } catch {
                         // Refresh failed — clear stale auth
                         clearAuth();
@@ -83,6 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 } else {
                     // No refresh token but has access token — use it until it expires
                     setUser(savedUser);
+                    setAnalyticsUserId(savedUser.id);
                 }
             }
             setIsLoading(false);
@@ -104,8 +110,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const res = await authApi.login(phone, code);
             storeAuth(res.token, res.refreshToken, res.user);
             setUser(res.user);
+            setAnalyticsUserId(res.user.id);
+            track('action.auth.login_completed');
             return true;
         } catch {
+            track('action.auth.login_failed', { error_code: 'unknown' });
             return false;
         }
     };

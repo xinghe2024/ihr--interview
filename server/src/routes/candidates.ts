@@ -15,6 +15,7 @@ import { getSupabase } from '../config/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { apiResponse } from '../middleware/apiResponse.js';
 import { runResumePipeline, runResumeTextPipeline } from '../services/orchestrator.js';
+import { checkAndTrack, checkResume, checkKSQ } from '../services/qualityChecker.js';
 import type {
   Candidate,
   CandidateStatus,
@@ -229,6 +230,10 @@ candidates.post('/:id/parse-resume', async (c) => {
 
   // 运行解析流水线
   const result = await runResumePipeline(file.storage_path, candidate.role);
+
+  // 质量校验（fire-and-forget）
+  checkAndTrack('resume', () => checkResume(result.resume, result.rawText.length), { candidate_id: id }, user.userId);
+  checkAndTrack('ksq', () => checkKSQ(result.ksqItems), { candidate_id: id, ksq_count: result.ksqItems.length }, user.userId);
 
   // 写回数据库
   const { error: updateErr } = await db

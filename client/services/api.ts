@@ -35,6 +35,7 @@ import type {
   DetailedResume,
   KSQItem,
 } from '../../shared/types';
+import { track } from './analytics';
 
 // ─── Token Storage ────────────────────────────────
 const TOKEN_KEY = 'ihr_nexus_token';
@@ -129,11 +130,13 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     throw new ApiError('AUTH_EXPIRED', '登录已过期，请重新登录', 401);
   }
 
-  throw new ApiError(
+  const apiErr = new ApiError(
     json.error?.code || 'UNKNOWN',
     json.error?.message || '请求失败',
     res.status,
   );
+  track('error.api.request_failed', { path, status: res.status, code: apiErr.code });
+  throw apiErr;
 }
 
 async function tryRefreshToken(): Promise<boolean> {
@@ -218,10 +221,13 @@ export const candidates = {
   delete: (id: string) =>
     apiFetch<{ deleted: boolean }>(`/candidates/${id}`, { method: 'DELETE' }),
 
-  parseResume: (id: string) =>
-    apiFetch<{ resume: DetailedResume; ksqItems: KSQItem[] }>(`/candidates/${id}/parse-resume`, {
+  parseResume: async (id: string) => {
+    const res = await apiFetch<{ resume: DetailedResume; ksqItems: KSQItem[] }>(`/candidates/${id}/parse-resume`, {
       method: 'POST',
-    }),
+    });
+    track('funnel.resume.parsed', { candidate_id: id });
+    return res;
+  },
 };
 
 // ─── Files API ────────────────────────────────────
@@ -238,11 +244,14 @@ export const files = {
 
 // ─── Interviews API ───────────────────────────────
 export const interviews = {
-  create: (data: CreateInterviewRequest) =>
-    apiFetch<CreateInterviewResponse>('/interviews', {
+  create: async (data: CreateInterviewRequest) => {
+    const res = await apiFetch<CreateInterviewResponse>('/interviews', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
+    });
+    track('funnel.interview.created', { candidate_id: data.candidateId, channel: data.channel ?? 'TEXT' });
+    return res;
+  },
 
   getLanding: (sessionId: string) =>
     apiFetch<InterviewLandingResponse>(`/interviews/${sessionId}/landing`),
